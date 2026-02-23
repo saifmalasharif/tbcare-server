@@ -655,12 +655,10 @@ const GOV_MAP_CONFIG = {
 const DIST_IDS = GOV_MAP_CONFIG['Ninawa'].ids;
 const DIST_CENTERS = GOV_MAP_CONFIG['Ninawa'].centers;
 
-let patients = [];
-try { patients = JSON.parse(localStorage.getItem('tb_patients_v2') || '[]'); } catch(e){}
 let editingId = null;
 
 function save() {
-  try { localStorage.setItem('tb_patients_v2', JSON.stringify(patients)); } catch(e){}
+  // Data is stored in cloud database - no localStorage needed
 }
 
 // ── HELPERS ─────────────────────────────
@@ -728,15 +726,18 @@ function showErr(msg) {
 async function adminLogin() {
   const u = document.getElementById('admin-user').value.trim().toLowerCase();
   const p = document.getElementById('admin-pass').value;
-  if (!u || !p) return showErr('Please enter username and password.');
+  if (!u || !p) { alert('Enter username and password'); return; }
+  alert('Trying to login as: ' + u);
   try {
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: u, password: p })
     });
+    alert('Response status: ' + res.status);
     const data = await res.json();
-    if (!res.ok) return showErr('Error: ' + (data.error || res.status));
+    alert('Response: ' + JSON.stringify(data).substring(0, 100));
+    if (!res.ok) { showErr('Error: ' + (data.error || res.status)); return; }
     token = data.token;
     localStorage.setItem('tb_token', token);
     currentAdmin = data.user;
@@ -744,6 +745,7 @@ async function adminLogin() {
     await loadPatients();
     showApp('admin');
   } catch(e) {
+    alert('CATCH ERROR: ' + e.message);
     showErr('Connection error: ' + e.message);
   }
 }
@@ -1429,7 +1431,7 @@ function exportData() {
 }
 
 // ── REG PHOTOS ─────────────────────────────
-let regPhotos = [];
+// regPhotos already declared above
 
 function handleRegPhotos(e) {
   const files = Array.from(e.target.files);
