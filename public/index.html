@@ -770,7 +770,12 @@ function showApp(role, pt) {
   document.getElementById('admin-view').style.display = role === 'admin' ? 'block' : 'none';
   document.getElementById('patient-view').style.display = role === 'patient' ? 'block' : 'none';
   document.getElementById('login-error').style.display = 'none';
-  if (role === 'admin') { renderStats(); renderAlerts(); renderMap(); renderTable(); }
+  if (role === 'admin') {
+    try { renderStats(); } catch(e) { console.error('renderStats:', e); }
+    try { renderAlerts(); } catch(e) { console.error('renderAlerts:', e); }
+    try { renderMap(); } catch(e) { console.error('renderMap:', e); }
+    try { renderTable(); } catch(e) { console.error('renderTable:', e); }
+  }
   if (role === 'patient') renderPatientView(pt);
 }
 
