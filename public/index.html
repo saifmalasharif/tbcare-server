@@ -730,7 +730,13 @@ async function adminLogin() {
   const p = document.getElementById('admin-pass').value;
   if (!u || !p) return showErr('Please enter username and password.');
   try {
-    const data = await api('POST', '/api/login', { username: u, password: p });
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const data = await res.json();
+    if (!res.ok) return showErr('Error: ' + (data.error || res.status));
     token = data.token;
     localStorage.setItem('tb_token', token);
     currentAdmin = data.user;
@@ -738,7 +744,7 @@ async function adminLogin() {
     await loadPatients();
     showApp('admin');
   } catch(e) {
-    showErr('Incorrect credentials. Please try again.');
+    showErr('Connection error: ' + e.message);
   }
 }
 
