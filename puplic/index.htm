@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TB-Care</title>
+<style>
+/* ── SYSTEM FONTS — no external load ── */
+:root {
+  --bg: #f2f4f7;
+  --surface: #fff;
+  --surface2: #f8f9fb;
+  --border: #e3e7ed;
+  --accent: #1a5c3e;
+  --accent-light: #eaf4ee;
+  --phase1: #d97706;
+  --phase1-light: #fef3c7;
+  --phase2: #2563eb;
+  --phase2-light: #dbeafe;
+  --danger: #dc2626;
+  --danger-light: #fee2e2;
+  --warn: #d97706;
+  --warn-light: #fef3c7;
+  --ok: #16a34a;
+  --ok-light: #dcfce7;
+  --text: #111827;
+  --text2: #4b5563;
+  --text3: #9ca3af;
+  --mono: ui-monospace, 'Courier New', monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --radius: 14px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+/* LOGIN */
+#login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg,#0b2418 0%,#1a5c3e 55%,#23895c 100%); padding: 20px; }
+.login-card { background: #fff; border-radius: 22px; padding: 40px 36px; width: 100%; max-width: 390px; box-shadow: 0 32px 80px rgba(0,0,0,.28); }
+.login-mark { display: flex; align-items: center; gap: 11px; margin-bottom: 26px; }
+.login-mark-icon { width: 44px; height: 44px; background: var(--accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.login-mark-icon svg { width: 24px; height: 24px; fill: white; }
+.lm-title { font-size: 17px; font-weight: 700; }
+.lm-sub { font-size: 11px; color: var(--text2); margin-top: 1px; letter-spacing: .04em; }
+.tab-row { display: flex; gap: 3px; background: var(--bg); border-radius: 10px; padding: 3px; margin-bottom: 24px; }
+.tab-btn { flex: 1; padding: 9px; border: none; background: transparent; border-radius: 8px; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text2); transition: all .18s; }
+.tab-btn.active { background: #fff; color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.1); font-weight: 700; }
+.field { margin-bottom: 13px; }
+.field label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 5px; letter-spacing: .06em; text-transform: uppercase; }
+.field input { width: 100%; padding: 11px 13px; border: 1.5px solid var(--border); border-radius: 9px; font-family: var(--sans); font-size: 15px; color: var(--text); background: var(--surface2); outline: none; -webkit-appearance: none; }
+.field input:focus { border-color: var(--accent); background: #fff; }
+.btn-primary { width: 100%; padding: 14px; background: var(--accent); color: #fff; border: none; border-radius: 10px; font-family: var(--sans); font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 6px; -webkit-appearance: none; }
+.login-error { color: var(--danger); font-size: 12px; margin-top: 10px; text-align: center; display: none; padding: 8px; background: var(--danger-light); border-radius: 8px; }
+
+/* APP */
+#app { display: none; min-height: 100vh; }
+#admin-view, #patient-view { display: none; }
+
+/* TOPBAR */
+.topbar { background: #fff; border-bottom: 1px solid var(--border); padding: 0 18px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.topbar-brand { display: flex; align-items: center; gap: 9px; }
+.topbar-icon { width: 30px; height: 30px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.topbar-icon svg { width: 17px; height: 17px; fill: white; }
+.topbar-title { font-size: 15px; font-weight: 700; }
+.topbar-sub { font-size: 10px; color: var(--text2); letter-spacing: .04em; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.chip { font-size: 11px; font-family: var(--mono); background: var(--accent-light); color: var(--accent); padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+.btn-ghost { padding: 7px 12px; border: 1.5px solid var(--border); background: #fff; border-radius: 8px; font-family: var(--sans); font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text2); }
+
+/* CONTENT */
+.admin-content { padding: 16px; max-width: 1100px; margin: 0 auto; }
+
+/* STATS */
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+@media(min-width:600px){ .stats-grid { grid-template-columns: repeat(6,1fr); } }
+.stat-card { background: #fff; border-radius: var(--radius); padding: 14px 16px; border: 1px solid var(--border); }
+.stat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text3); margin-bottom: 6px; }
+.stat-val { font-size: 26px; font-weight: 700; font-family: var(--mono); line-height: 1; }
+.stat-val.green { color: var(--ok); }
+.stat-val.amber { color: var(--warn); }
+.stat-val.red { color: var(--danger); }
+.stat-val.blue { color: var(--phase2); }
+
+/* ALERTS */
+.alerts-banner { margin-bottom: 14px; display: none; }
+.alert-item { display: flex; align-items: flex-start; gap: 9px; background: var(--danger-light); border: 1px solid #fca5a5; border-radius: 10px; padding: 10px 13px; margin-bottom: 6px; font-size: 13px; color: #7f1d1d; cursor: pointer; }
+.alert-item.warn { background: var(--warn-light); border-color: #fcd34d; color: #78350f; }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex-shrink: 0; margin-top: 4px; }
+.alert-dot.warn { background: var(--warn); }
+
+/* MAP CARD */
+.map-card { background: #fff; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow); margin-bottom: 16px; }
+.map-header { padding: 13px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.map-header h3 { font-size: 14px; font-weight: 700; }
+.map-header p { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.map-legend { display: flex; gap: 12px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.map-body { display: flex; flex-direction: column; }
+@media(min-width:700px){ .map-body { flex-direction: row; } }
+#svg-map-wrap { flex: 1; min-height: 300px; background: #e8f0e9; position: relative; overflow: hidden; }
+#svg-map-wrap svg { width: 100%; height: 100%; display: block; }
+.district-sidebar { width: 100%; border-top: 1px solid var(--border); overflow-y: auto; max-height: 300px; }
+@media(min-width:700px){ .district-sidebar { width: 220px; border-top: none; border-left: 1px solid var(--border); max-height: 380px; } }
+.dist-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 13px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; font-size: 13px; }
+.dist-row:hover { background: var(--accent-light); }
+.dist-row:last-child { border-bottom: none; }
+.dist-name { font-weight: 500; }
+.dist-bar-wrap { flex: 1; margin: 0 8px; height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.dist-bar { height: 100%; border-radius: 99px; }
+.dist-count { font-family: var(--mono); font-size: 11px; font-weight: 700; min-width: 28px; text-align: right; }
+.map-empty { padding: 32px 16px; text-align: center; color: var(--text3); font-size: 13px; }
+
+/* TABLE */
+.table-card { background: #fff; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow); }
+.table-toolbar { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.search-wrap { position: relative; flex: 1; min-width: 160px; max-width: 280px; }
+.search-wrap input { width: 100%; padding: 9px 12px 9px 32px; border: 1.5px solid var(--border); border-radius: 8px; font-family: var(--sans); font-size: 13px; outline: none; background: var(--surface2); -webkit-appearance: none; }
+.search-wrap input:focus { border-color: var(--accent); }
+.search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); opacity: .4; }
+.toolbar-right { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+.filter-sel { padding: 8px 9px; border: 1.5px solid var(--border); border-radius: 8px; font-family: var(--sans); font-size: 12px; background: var(--surface2); color: var(--text2); outline: none; cursor: pointer; -webkit-appearance: none; }
+.btn-accent { padding: 9px 15px; background: var(--accent); color: #fff; border: none; border-radius: 9px; font-family: var(--sans); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+table { width: 100%; border-collapse: collapse; }
+thead th { padding: 9px 14px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text3); background: var(--surface2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--accent-light); }
+tbody td { padding: 11px 14px; font-size: 13px; }
+.code-tag { font-family: var(--mono); font-size: 11px; background: var(--surface2); border: 1px solid var(--border); padding: 3px 7px; border-radius: 5px; }
+.pill { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.pill.phase1 { background: var(--phase1-light); color: #92400e; }
+.pill.phase2 { background: var(--phase2-light); color: #1e40af; }
+.pill.pdone { background: var(--ok-light); color: #166534; }
+.pill.med-ok { background: var(--ok-light); color: #166534; }
+.pill.med-low { background: var(--warn-light); color: #92400e; }
+.pill.med-crit { background: var(--danger-light); color: #991b1b; }
+.pill.neutral { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text3); font-size: 13px; }
+
+/* PANEL */
+.panel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 140; display: none; }
+.detail-panel { position: fixed; right: 0; top: 0; bottom: 0; width: min(460px, 100vw); background: #fff; border-left: 1px solid var(--border); z-index: 150; transform: translateX(100%); transition: transform .26s ease; display: flex; flex-direction: column; overflow: hidden; }
+.detail-panel.open { transform: translateX(0); }
+.panel-header { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.panel-htop { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 9px; }
+.panel-name { font-size: 17px; font-weight: 700; }
+.panel-meta { display: flex; gap: 5px; flex-wrap: wrap; }
+.panel-close { width: 30px; height: 30px; border: none; background: var(--bg); border-radius: 7px; cursor: pointer; font-size: 16px; color: var(--text2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.timeline-wrap { padding: 13px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.tl-label { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+.tl-track { height: 12px; background: var(--border); border-radius: 99px; overflow: hidden; display: flex; }
+.tl-p1 { height: 100%; background: var(--phase1); }
+.tl-p2 { height: 100%; background: var(--phase2); }
+.tl-months { display: flex; justify-content: space-between; margin-top: 4px; }
+.tl-months span { font-size: 10px; color: var(--text3); }
+.tl-info { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-top: 9px; }
+.tl-block { border-radius: 8px; padding: 7px 9px; text-align: center; }
+.tl-block .tv { font-size: 15px; font-weight: 700; font-family: var(--mono); }
+.tl-block .tl { font-size: 10px; color: var(--text2); margin-top: 1px; text-transform: uppercase; }
+.panel-body { padding: 16px 20px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+.info-section { margin-bottom: 18px; }
+.info-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text3); margin-bottom: 9px; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+.info-cell { background: #fff; padding: 9px 12px; }
+.info-cell.full { grid-column: 1/-1; }
+.info-key { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+.info-val { font-size: 13px; font-weight: 500; }
+.med-tracker { background: var(--surface2); border-radius: 11px; padding: 13px 15px; border: 1px solid var(--border); }
+.med-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 9px; }
+.med-count { font-size: 24px; font-weight: 700; font-family: var(--mono); }
+.med-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.med-bar-track { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 7px; }
+.med-bar-fill { height: 100%; border-radius: 99px; }
+.med-bar-fill.ok { background: var(--ok); }
+.med-bar-fill.warn { background: var(--warn); }
+.med-bar-fill.danger { background: var(--danger); }
+.med-stats { display: flex; gap: 10px; font-size: 11px; color: var(--text2); flex-wrap: wrap; }
+.med-alert { display: flex; gap: 7px; align-items: flex-start; border-radius: 9px; padding: 9px 11px; font-size: 12px; margin-top: 9px; line-height: 1.5; }
+.med-alert.ok { background: var(--ok-light); color: #14532d; }
+.med-alert.warn { background: var(--warn-light); color: #78350f; }
+.med-alert.danger { background: var(--danger-light); color: #7f1d1d; }
+.update-row { display: flex; gap: 7px; align-items: center; margin-top: 12px; }
+.update-row input { flex: 1; padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 8px; font-family: var(--mono); font-size: 14px; outline: none; -webkit-appearance: none; }
+.update-row input:focus { border-color: var(--accent); }
+.btn-sm { padding: 9px 13px; border-radius: 8px; font-family: var(--sans); font-size: 12px; font-weight: 700; cursor: pointer; border: none; }
+.btn-sm.green { background: var(--accent); color: #fff; }
+.btn-sm.red { background: var(--danger-light); color: var(--danger); }
+.btn-sm.gray { background: var(--bg); color: var(--text2); border: 1px solid var(--border); }
+.panel-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 7px; background: var(--surface2); }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: flex-end; justify-content: center; z-index: 200; }
+@media(min-width:600px){ .modal-overlay { align-items: center; padding: 20px; } }
+.modal { background: #fff; border-radius: 20px 20px 0 0; width: 100%; max-width: 580px; max-height: 94vh; overflow-y: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 -8px 40px rgba(0,0,0,.2); }
+@media(min-width:600px){ .modal { border-radius: 20px; max-height: 92vh; box-shadow: 0 40px 100px rgba(0,0,0,.3); } }
+.modal-header { padding: 20px 24px 0; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.modal-header h2 { font-size: 17px; font-weight: 700; }
+.modal-close { width: 30px; height: 30px; border: none; background: var(--bg); border-radius: 7px; cursor: pointer; font-size: 16px; color: var(--text2); }
+.modal-body { padding: 0 24px 32px; }
+.form-section { margin-bottom: 16px; }
+.form-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text3); margin-bottom: 9px; padding-bottom: 7px; border-bottom: 1px solid var(--border); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.form-grid .full { grid-column: 1/-1; }
+.form-field label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text2); margin-bottom: 4px; }
+.form-field input, .form-field select { width: 100%; padding: 10px 11px; border: 1.5px solid var(--border); border-radius: 9px; font-family: var(--sans); font-size: 14px; outline: none; background: var(--surface2); color: var(--text); -webkit-appearance: none; }
+.form-field input:focus, .form-field select:focus { border-color: var(--accent); background: #fff; }
+.hint { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.modal-footer { display: flex; gap: 9px; justify-content: flex-end; border-top: 1px solid var(--border); margin-top: 16px; padding-top: 16px; }
+.btn-cancel { padding: 10px 16px; background: var(--bg); border: none; border-radius: 8px; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text2); }
+
+/* PATIENT VIEW */
+.patient-topbar { background: var(--accent); padding: 0 20px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+.pt-tb-left span { color: #fff; font-weight: 700; font-size: 15px; display: block; }
+.pt-tb-left small { color: rgba(255,255,255,.6); font-size: 11px; font-family: var(--mono); }
+.pt-logout { background: rgba(255,255,255,.18); color: #fff; border: none; padding: 7px 12px; border-radius: 7px; font-size: 12px; cursor: pointer; font-weight: 600; }
+.pt-content { padding: 16px; max-width: 500px; margin: 0 auto; }
+.pt-card { background: #fff; border-radius: var(--radius); border: 1px solid var(--border); padding: 18px; margin-bottom: 12px; box-shadow: var(--shadow); }
+.pt-card h2 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text3); margin-bottom: 12px; }
+.pt-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.pt-row:last-child { border-bottom: none; }
+.pt-row-key { color: var(--text2); }
+.pt-row-val { font-weight: 600; }
+.ring-wrap { display: flex; align-items: center; gap: 16px; }
+.ring-svg { width: 84px; height: 84px; flex-shrink: 0; }
+.ring-bg { fill: none; stroke: var(--border); stroke-width: 9; }
+.ring-fill { fill: none; stroke-width: 9; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; }
+.ring-text { text-anchor: middle; dominant-baseline: middle; font-family: var(--mono); font-size: 13px; font-weight: 700; fill: var(--text); }
+.ring-info h3 { font-size: 20px; font-weight: 700; font-family: var(--mono); }
+.ring-info p { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.ring-info .wk { font-size: 13px; font-weight: 700; color: var(--accent); margin-top: 5px; }
+.pt-tl-track { height: 10px; background: var(--border); border-radius: 99px; display: flex; overflow: hidden; margin-bottom: 7px; }
+.pt-tl-p1 { background: var(--phase1); height: 100%; }
+.pt-tl-p2 { background: var(--phase2); height: 100%; }
+.pt-tl-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); }
+.pt-phase-blocks { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 11px; }
+.pt-phase-block { border-radius: 10px; padding: 11px 13px; }
+.pb-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.pb-med { font-size: 15px; font-weight: 700; font-family: var(--mono); }
+.pb-sub { font-size: 11px; margin-top: 2px; opacity: .8; }
+
+/* Mobile table hide columns */
+@media(max-width:600px){
+  thead th:nth-child(3),tbody td:nth-child(3),
+  thead th:nth-child(5),tbody td:nth-child(5),
+  thead th:nth-child(7),tbody td:nth-child(7){ display:none; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid .full { grid-column: 1; }
+}
+
+/* PHOTO GALLERY */
+.photo-gallery-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 300; display: none; flex-direction: column; }
+.photo-gallery-overlay.open { display: flex; }
+.gallery-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.1); }
+.gallery-title { color: #fff; font-size: 15px; font-weight: 700; }
+.gallery-sub { color: rgba(255,255,255,.5); font-size: 11px; margin-top: 2px; }
+.gallery-close { width: 36px; height: 36px; border: none; background: rgba(255,255,255,.1); border-radius: 50%; cursor: pointer; color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.gallery-body { flex: 1; overflow-y: auto; padding: 20px; -webkit-overflow-scrolling: touch; }
+.gallery-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media(min-width:500px){ .gallery-grid { grid-template-columns: repeat(3,1fr); } }
+.gallery-item { position: relative; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,.05); aspect-ratio: 1; cursor: pointer; transition: transform .18s; }
+.gallery-item:hover { transform: scale(1.03); }
+.gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-item-del { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: rgba(220,38,38,.85); border: none; color: #fff; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .2s; }
+.gallery-item:hover .gallery-item-del { opacity: 1; }
+.gallery-add-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; border: 2px dashed rgba(255,255,255,.2); aspect-ratio: 1; cursor: pointer; color: rgba(255,255,255,.5); background: transparent; transition: all .18s; font-size: 13px; gap: 6px; }
+.gallery-add-btn:hover { border-color: rgba(255,255,255,.5); color: #fff; background: rgba(255,255,255,.05); }
+.gallery-add-icon { font-size: 28px; line-height: 1; }
+.gallery-empty { text-align: center; padding: 60px 20px; color: rgba(255,255,255,.4); }
+.gallery-empty-icon { font-size: 48px; margin-bottom: 12px; }
+.gallery-empty-text { font-size: 14px; }
+/* Lightbox */
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.97); z-index: 400; display: none; align-items: center; justify-content: center; flex-direction: column; }
+.lightbox.open { display: flex; }
+.lightbox img { max-width: 95vw; max-height: 85vh; object-fit: contain; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.lightbox-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border: none; background: rgba(255,255,255,.12); border-radius: 50%; cursor: pointer; color: #fff; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+
+
+.map-tooltip { position: absolute; background: rgba(17,24,39,.9); color: #fff; font-size: 12px; padding: 6px 10px; border-radius: 7px; pointer-events: none; display: none; z-index: 10; white-space: nowrap; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-mark">
+      <div class="login-mark-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg></div>
+      <div><div class="lm-title">TB-Care</div></div>
+    </div>
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="setTab('admin')">Admin</button>
+      <button class="tab-btn" onclick="setTab('patient')">Patient</button>
+    </div>
+    <div id="admin-login-form">
+      <div class="field"><label>Username</label><input type="text" id="admin-user" placeholder="admin" autocomplete="off" autocapitalize="none"></div>
+      <div class="field"><label>Password</label><div style="position:relative"><input type="password" id="admin-pass" placeholder="••••••••" style="width:100%;padding-right:42px"><button type="button" onclick="const i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'" style="position:absolute;right:0;top:0;height:100%;width:40px;border:none;background:transparent;cursor:pointer;font-size:16px">👁</button></div></div>
+      <button class="btn-primary" onclick="adminLogin()">Sign In</button>
+    </div>
+    <div id="patient-login-form" style="display:none">
+      <div class="field"><label>Patient Code</label><input type="text" id="pt-code-inp" placeholder="e.g. NNW-081" autocomplete="off" style="font-family:var(--mono);letter-spacing:.06em"></div>
+      <button class="btn-primary" onclick="patientLogin()">Access My Records</button>
+    </div>
+    <div class="login-error" id="login-error">Incorrect credentials. Please try again.</div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app">
+
+<!-- ADMIN -->
+<div id="admin-view">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-icon"><svg viewBox="0 0 24 24" fill="white"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg></div>
+      <div><div class="topbar-title">TB-Care</div><div class="topbar-sub">ADMIN DASHBOARD</div></div>
+    </div>
+    <div class="topbar-right">
+      <span class="chip">SAIF</span>
+      <button class="btn-ghost" onclick="logout()">Logout</button>
+    </div>
+  </div>
+  <div class="admin-content">
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="alerts-banner" id="alerts-banner"></div>
+
+    <!-- TB TYPE CHART -->
+    <div class="map-card" style="margin-bottom:16px">
+      <div class="map-header">
+        <div><h3>TB Type Distribution</h3><p>Breakdown of Normal TB · MDR-TB · XDR-TB</p></div>
+      </div>
+      <div style="padding:16px;display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+        <canvas id="tb-pie" width="160" height="160" style="flex-shrink:0"></canvas>
+        <div id="tb-type-stats" style="flex:1;min-width:180px"></div>
+      </div>
+    </div>
+
+    <!-- SVG MAP -->
+    <!-- DYNAMIC MAP -->
+    <div class="map-card" id="map-card">
+      <div class="map-header">
+        <div><h3 id="map-title">District TB Distribution</h3><p>Active cases by sector — tap a district to filter</p></div>
+        <div class="map-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>High (5+)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>Med (2–4)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>Low (1)</div>
+        </div>
+      </div>
+      <div class="map-body">
+        <div id="svg-map-wrap">
+
+          <!-- NINAWA SVG -->
+          <svg id="ninawa-svg" viewBox="0 0 500 380" xmlns="http://www.w3.org/2000/svg" style="cursor:pointer;display:none">
+            <rect width="500" height="380" fill="#dde8dd"/>
+            <path d="M60,50 L160,30 L260,20 L360,40 L440,80 L460,140 L450,200 L440,260 L400,320 L340,350 L260,360 L180,350 L110,320 L70,270 L50,200 L45,140 Z" fill="#c8dbc8" stroke="#9ab89a" stroke-width="2"/>
+            <path d="M200,25 Q220,60 210,100 Q200,140 215,180 Q225,210 220,250 Q215,280 230,320" fill="none" stroke="#7ab3d4" stroke-width="4" stroke-linecap="round" opacity=".7"/>
+            <ellipse id="dist-Mosul" cx="215" cy="155" rx="52" ry="44" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Al-Ayser"/>
+            <text x="215" y="152" text-anchor="middle" font-size="10" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Al-Ayser</text>
+            <ellipse id="dist-Tilkaif" cx="230" cy="90" rx="38" ry="30" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Talkif"/>
+            <text x="230" y="87" text-anchor="middle" font-size="9" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Talkif</text>
+            <ellipse id="dist-Shekhan" cx="340" cy="90" rx="38" ry="30" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Shikhan"/>
+            <text x="340" y="87" text-anchor="middle" font-size="9" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Shikhan</text>
+            <ellipse id="dist-TalAfar" cx="110" cy="160" rx="40" ry="32" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Al-Qaeyara"/>
+            <text x="110" y="157" text-anchor="middle" font-size="9" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Al-Qaeyara</text>
+            <ellipse id="dist-Hamdaniya" cx="340" cy="170" rx="42" ry="30" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Al-Hamdania"/>
+            <text x="340" y="167" text-anchor="middle" font-size="9" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Al-Hamdania</text>
+            <ellipse id="dist-Sinjar" cx="105" cy="250" rx="44" ry="32" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Al-Hadar"/>
+            <text x="105" y="247" text-anchor="middle" font-size="9" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Al-Hadar</text>
+            <ellipse id="dist-Zummar" cx="80" cy="105" rx="32" ry="24" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Baaj"/>
+            <text x="80" y="103" text-anchor="middle" font-size="9" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Baaj</text>
+            <ellipse id="dist-Makhmur" cx="360" cy="280" rx="44" ry="32" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Makhmur"/>
+            <text x="360" y="277" text-anchor="middle" font-size="9" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Makhmur</text>
+            <ellipse id="dist-QaQaa" cx="255" cy="300" rx="46" ry="32" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Al-Aymen"/>
+            <text x="255" y="297" text-anchor="middle" font-size="9" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Al-Aymen</text>
+            <ellipse id="dist-Baaj" cx="90" cy="320" rx="36" ry="26" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Sinjar"/>
+            <text x="90" y="318" text-anchor="middle" font-size="9" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Sinjar</text>
+            <ellipse id="dist-Akre" cx="430" cy="120" rx="36" ry="26" fill="#c8dbc8" stroke="#9ab89a" stroke-width="1.5" class="dist-shape" data-district="Tal Afer"/>
+            <text x="430" y="118" text-anchor="middle" font-size="9" fill="#1a3a1a" font-family="sans-serif" font-weight="600" pointer-events="none">Tal Afer</text>
+            <g id="map-bubbles-ninawa"></g>
+          </svg>
+
+          <!-- BAGHDAD SVG -->
+          <svg id="baghdad-svg" viewBox="0 0 500 380" xmlns="http://www.w3.org/2000/svg" style="cursor:pointer;display:none">
+            <rect width="500" height="380" fill="#e8e0d8"/>
+            <path d="M80,40 L200,30 L320,35 L420,70 L450,150 L440,240 L400,320 L300,355 L200,360 L110,330 L70,250 L55,160 Z" fill="#d8ccc0" stroke="#b8a898" stroke-width="2"/>
+            <path d="M240,20 Q250,80 245,140 Q240,190 255,240 Q265,280 260,340" fill="none" stroke="#7ab3d4" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+            <ellipse id="bgd-Karkh" cx="185" cy="170" rx="48" ry="40" fill="#d8ccc0" stroke="#b8a898" stroke-width="1.5" class="dist-shape" data-district="Karkh"/>
+            <text x="185" y="167" text-anchor="middle" font-size="10" fill="#2a1a0a" font-family="sans-serif" font-weight="600" pointer-events="none">Karkh</text>
+            <ellipse id="bgd-Rusafa" cx="310" cy="170" rx="48" ry="40" fill="#d8ccc0" stroke="#b8a898" stroke-width="1.5" class="dist-shape" data-district="Rusafa"/>
+            <text x="310" y="167" text-anchor="middle" font-size="10" fill="#2a1a0a" font-family="sans-serif" font-weight="600" pointer-events="none">Rusafa</text>
+            <ellipse id="bgd-Adhamiya" cx="360" cy="90" rx="42" ry="30" fill="#d8ccc0" stroke="#b8a898" stroke-width="1.5" class="dist-shape" data-district="Adhamiya"/>
+            <text x="360" y="87" text-anchor="middle" font-size="9" fill="#2a1a0a" font-family="sans-serif" font-weight="600" pointer-events="none">Adhamiya</text>
+            <ellipse id="bgd-Kadhimiya" cx="160" cy="80" rx="42" ry="30" fill="#d8ccc0" stroke="#b8a898" stroke-width="1.5" class="dist-shape" data-district="Kadhimiya"/>
+            <text x="160" y="77" text-anchor="middle" font-size="9" fill="#2a1a0a" font-family="sans-serif" font-weight="600" pointer-events="none">Kadhimiya</text>
+            <ellipse id="bgd-Mansour" cx="110" cy="200" rx="44" ry="32" fill="#d8ccc0" stroke="#b8a898" stroke-width="1.5" class="dist-shape" data-district="Mansour"/>
+            <text x="110" y="197" text-anchor="middle" font-size="9" fill="#2a1a0a" font-family="sans-serif" font-weight="600" pointer-events="none">Mansour</text>
+            <ellipse id="bgd-Karrada" cx="330" cy="255" rx="42" ry="30" fill="#d8ccc0" stroke="#b8a898" stroke-width="1.5" class="dist-shape" data-district="Karrada"/>
+            <text x="330" y="252" text-anchor="middle" font-size="9" fill="#2a1a0a" font-family="sans-serif" font-weight="600" pointer-events="none">Karrada</text>
+            <ellipse id="bgd-SadrCity" cx="420" cy="175" rx="44" ry="32" fill="#d8ccc0" stroke="#b8a898" stroke-width="1.5" class="dist-shape" data-district="Sadr City"/>
+            <text x="420" y="172" text-anchor="middle" font-size="9" fill="#2a1a0a" font-family="sans-serif" font-weight="600" pointer-events="none">Sadr City</text>
+            <ellipse id="bgd-Rashid" cx="185" cy="295" rx="48" ry="32" fill="#d8ccc0" stroke="#b8a898" stroke-width="1.5" class="dist-shape" data-district="Al-Rashid"/>
+            <text x="185" y="292" text-anchor="middle" font-size="9" fill="#2a1a0a" font-family="sans-serif" font-weight="600" pointer-events="none">Al-Rashid</text>
+            <ellipse id="bgd-NewBaghdad" cx="390" cy="300" rx="44" ry="30" fill="#d8ccc0" stroke="#b8a898" stroke-width="1.5" class="dist-shape" data-district="New Baghdad"/>
+            <text x="390" y="297" text-anchor="middle" font-size="9" fill="#2a1a0a" font-family="sans-serif" font-weight="600" pointer-events="none">New Baghdad</text>
+            <g id="map-bubbles-baghdad"></g>
+          </svg>
+
+          <!-- DOHUK SVG -->
+          <svg id="dohuk-svg" viewBox="0 0 500 380" xmlns="http://www.w3.org/2000/svg" style="cursor:pointer;display:none">
+            <rect width="500" height="380" fill="#dce8f0"/>
+            <path d="M50,30 L180,20 L320,30 L440,60 L470,140 L460,230 L420,310 L320,350 L200,355 L100,320 L55,230 L40,130 Z" fill="#c8dce8" stroke="#98b8c8" stroke-width="2"/>
+            <path d="M60,60 L120,30 L180,55 L240,25 L300,50 L360,28 L420,55" fill="none" stroke="#a8c0d0" stroke-width="2" opacity=".5"/>
+            <path d="M300,20 Q290,80 280,140 Q270,200 260,300" fill="none" stroke="#7ab3d4" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+            <ellipse id="dhk-Dohuk" cx="220" cy="175" rx="52" ry="42" fill="#c8dce8" stroke="#98b8c8" stroke-width="1.5" class="dist-shape" data-district="Dohuk"/>
+            <text x="220" y="172" text-anchor="middle" font-size="10" fill="#0a1a2a" font-family="sans-serif" font-weight="600" pointer-events="none">Dohuk</text>
+            <ellipse id="dhk-Zakho" cx="115" cy="90" rx="44" ry="32" fill="#c8dce8" stroke="#98b8c8" stroke-width="1.5" class="dist-shape" data-district="Zakho"/>
+            <text x="115" y="87" text-anchor="middle" font-size="9" fill="#0a1a2a" font-family="sans-serif" font-weight="600" pointer-events="none">Zakho</text>
+            <ellipse id="dhk-Amedi" cx="370" cy="95" rx="44" ry="32" fill="#c8dce8" stroke="#98b8c8" stroke-width="1.5" class="dist-shape" data-district="Amedi"/>
+            <text x="370" y="92" text-anchor="middle" font-size="9" fill="#0a1a2a" font-family="sans-serif" font-weight="600" pointer-events="none">Amedi</text>
+            <ellipse id="dhk-Sumel" cx="115" cy="210" rx="44" ry="32" fill="#c8dce8" stroke="#98b8c8" stroke-width="1.5" class="dist-shape" data-district="Sumel"/>
+            <text x="115" y="207" text-anchor="middle" font-size="9" fill="#0a1a2a" font-family="sans-serif" font-weight="600" pointer-events="none">Sumel</text>
+            <ellipse id="dhk-Shikhan" cx="375" cy="255" rx="44" ry="32" fill="#c8dce8" stroke="#98b8c8" stroke-width="1.5" class="dist-shape" data-district="Shikhan"/>
+            <text x="375" y="252" text-anchor="middle" font-size="9" fill="#0a1a2a" font-family="sans-serif" font-weight="600" pointer-events="none">Shikhan</text>
+            <ellipse id="dhk-Akre" cx="245" cy="305" rx="48" ry="32" fill="#c8dce8" stroke="#98b8c8" stroke-width="1.5" class="dist-shape" data-district="Akre"/>
+            <text x="245" y="302" text-anchor="middle" font-size="9" fill="#0a1a2a" font-family="sans-serif" font-weight="600" pointer-events="none">Akre</text>
+            <g id="map-bubbles-dohuk"></g>
+          </svg>
+
+          <div class="map-tooltip" id="map-tooltip"></div>
+        </div>
+        <div class="district-sidebar" id="district-sidebar"></div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+        <!-- TABLE -->
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="search-wrap">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" placeholder="Search name or code…" oninput="renderTable()" id="search-inp">
+        </div>
+        <div class="toolbar-right">
+          <select class="filter-sel" id="phase-filter" onchange="renderTable()">
+            <option value="">All Phases</option>
+            <option value="Intensive">Intensive</option>
+            <option value="Continuation">Continuation</option>
+            <option value="Completed">Completed</option>
+          </select>
+          <select class="filter-sel" id="alert-filter" onchange="renderTable()">
+            <option value="">All</option>
+            <option value="alert">Alerts Only</option>
+          </select>
+          <button class="btn-accent" onclick="openAddModal()">+ New Patient</button>
+          <button class="btn-sm gray" onclick="exportExcel()" title="Export to Excel">📊 Export</button>
+          <button class="btn-sm gray" onclick="exportData()" title="Backup data">⬇ Backup</button>
+          <button class="btn-sm gray" onclick="document.getElementById('import-inp').click()" title="Restore data">⬆ Restore</button>
+          <input type="file" id="import-inp" accept=".json" style="display:none" onchange="importData(event)">
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Code</th><th>Name</th><th>Age/Sex</th>
+            <th>Phase</th><th>Start</th><th>Drug</th>
+            <th>Refill In</th><th>Supply</th>
+          </tr></thead>
+          <tbody id="patients-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="empty-state" style="display:none">No patients found. Register your first patient above.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PATIENT -->
+<div id="patient-view">
+  <div class="patient-topbar">
+    <div class="pt-tb-left"><span id="pt-greeting">—</span><small id="pt-code-display">—</small></div>
+    <button class="pt-logout" onclick="logout()">Logout</button>
+  </div>
+  <div class="pt-content" id="pt-content"></div>
+</div>
+
+</div><!-- #app -->
+
+<!-- PANEL OVERLAY -->
+<div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="panel-header">
+    <div class="panel-htop">
+      <div><div class="panel-name" id="panel-name"></div><div class="panel-meta" id="panel-meta"></div></div>
+      <button class="panel-close" onclick="closePanel()">✕</button>
+    </div>
+  </div>
+  <div class="timeline-wrap" id="panel-timeline"></div>
+  <div class="panel-body" id="panel-body"></div>
+  <div class="panel-footer" id="panel-footer"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header"><h2 id="modal-title">Register New Patient</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-section">
+        <div class="form-section-title">Patient Information</div>
+        <div class="form-grid">
+          <div class="form-field full"><label>Full Name</label><input type="text" id="f-name" placeholder="Patient full name"></div>
+          <div class="form-field"><label>Patient Code</label><input type="text" id="f-code" placeholder="NNW-001" style="font-family:var(--mono)"><div class="hint">Must be unique</div></div>
+          <div class="form-field"><label>Age</label><input type="number" id="f-age" placeholder="35"></div>
+          <div class="form-field"><label>Gender</label><select id="f-gender"><option value="">Select</option><option>Male</option><option>Female</option></select></div>
+          <div class="form-field"><label>Phone</label><input type="text" id="f-phone" placeholder="+964 7XX XXX XXXX"></div>
+          <div class="form-field"><label>Governorate</label>
+            <select id="f-gov" onchange="updateDistricts()">
+              <option value="">Select governorate</option>
+              <option value="Ninawa">Ninawa</option>
+              <option value="Baghdad">Baghdad</option>
+              <option value="Dohuk">Dohuk</option>
+            </select>
+          </div>
+          <div class="form-field"><label>District</label>
+            <select id="f-sector">
+              <option value="">Select district</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">TB Classification</div>
+        <div class="form-grid">
+          <div class="form-field"><label>TB Type</label>
+            <select id="f-tbtype">
+              <option value="">Select type</option>
+              <option value="Normal TB">Normal TB</option>
+              <option value="MDR-TB">MDR-TB</option>
+              <option value="XDR-TB">XDR-TB</option>
+            </select>
+          </div>
+          <div class="form-field"><label>TB Site</label><select id="f-site"><option value="">Select</option><option value="Pulmonary">Pulmonary (رئوي)</option><option value="Extrapulmonary">Extrapulmonary (خارج الرئة)</option></select></div>
+          <div class="form-field"><label>Patient Category</label><select id="f-category"><option value="New">New Case</option><option value="Retreatment">Retreatment</option></select></div>
+          <div class="form-field"><label>Smear Result</label><select id="f-smear"><option value="">Select</option><option value="Positive">Positive (+)</option><option value="Negative">Negative (-)</option><option value="Not done">Not done</option></select></div>
+          <div class="form-field"><label>Health Center</label><input type="text" id="f-center" placeholder="Center name"></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Treatment Plan · 6 Months Total</div>
+        <div class="form-grid">
+          <div class="form-field"><label>Treatment Start Date</label><input type="date" id="f-start"></div>
+          <div class="form-field"><label>Intensive Drug (Months 1–2)</label><select id="f-drug1"><option value="RHZE">RHZE (Standard)</option><option value="Other">Other</option></select></div>
+          <div class="form-field"><label>Continuation Drug (Months 3–6)</label><select id="f-drug2"><option value="RH">RH (Standard)</option><option value="RHE">RHE</option><option value="Other">Other</option></select></div>
+          <div class="form-field"><label>Daily Dose (tablets/day)</label><input type="number" id="f-daily" placeholder="4"></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Medication Stock</div>
+        <label for="f-selfcollect" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface2);border-radius:9px;border:1.5px solid var(--border);margin-bottom:10px;cursor:pointer">
+          <input type="checkbox" id="f-selfcollect" style="width:20px;height:20px;flex-shrink:0;accent-color:var(--accent)">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text1)">Self-Collecting Patient</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px">Patient collects medication independently — suppress refill alerts</div>
+          </div>
+        </label>
+        <div class="form-grid">
+          <div class="form-field"><label>Total Tablets Dispensed</label><input type="number" id="f-total" placeholder="56"></div>
+          <div class="form-field"><label>Tablets Currently Remaining</label><input type="number" id="f-remaining" placeholder="56"></div>
+          <div class="form-field full"><label>Clinical Notes</label><input type="text" id="f-notes" placeholder="Optional notes..."></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Patient Photos</div>
+        <div id="form-photo-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+        <button type="button" onclick="document.getElementById('reg-photo-inp').click()" style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px dashed var(--border);border-radius:10px;background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;width:100%;justify-content:center">
+          <span style="font-size:18px">📷</span> Add Photos
+        </button>
+        <input type="file" id="reg-photo-inp" accept="image/*" multiple style="display:none" onchange="handleRegPhotos(event)">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-accent" onclick="savePatient()">Save Patient</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────
+const INTENSIVE_DAYS = 60;
+const TOTAL_DAYS = 180;
+let currentAdmin = null;
+let token = localStorage.getItem('tb_token');
+let patients = [];
+let editingId = null;
+let regPhotos = [];
+
+// ── API HELPER ───────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+async function loadPatients() {
+  try { patients = await api('GET', '/api/patients'); } catch(e) { patients = []; }
+}
+
+function save() {}
+
+// District → SVG element ID mapping
+const GOV_MAP_CONFIG = {
+  'Ninawa': {
+    svgId: 'ninawa-svg', bubblesId: 'map-bubbles-ninawa',
+    ids: {
+      'al-ayser':'dist-Mosul','al-aymen':'dist-QaQaa','makhmur':'dist-Makhmur',
+      'al-qaeyara':'dist-TalAfar','al-hadar':'dist-Sinjar','al-hamdania':'dist-Hamdaniya',
+      'talkif':'dist-Tilkaif','sinjar':'dist-Baaj','baaj':'dist-Zummar',
+      'shikhan':'dist-Shekhan','tal afer':'dist-Akre'
+    },
+    centers: {
+      'al-ayser':[215,155],'al-qaeyara':[110,160],'al-hadar':[105,250],
+      'baaj':[80,105],'al-aymen':[255,300],'talkif':[230,90],
+      'al-hamdania':[340,170],'shikhan':[340,90],'tal afer':[430,120],
+      'makhmur':[360,280],'sinjar':[90,320]
+    }
+  },
+  'Baghdad': {
+    svgId: 'baghdad-svg', bubblesId: 'map-bubbles-baghdad',
+    ids: {
+      'karkh':'bgd-Karkh','rusafa':'bgd-Rusafa','adhamiya':'bgd-Adhamiya',
+      'kadhimiya':'bgd-Kadhimiya','mansour':'bgd-Mansour','karrada':'bgd-Karrada',
+      'sadr city':'bgd-SadrCity','al-rashid':'bgd-Rashid','new baghdad':'bgd-NewBaghdad'
+    },
+    centers: {
+      'karkh':[185,170],'rusafa':[310,170],'adhamiya':[360,90],
+      'kadhimiya':[160,80],'mansour':[110,200],'karrada':[330,255],
+      'sadr city':[420,175],'al-rashid':[185,295],'new baghdad':[390,300]
+    }
+  },
+  'Dohuk': {
+    svgId: 'dohuk-svg', bubblesId: 'map-bubbles-dohuk',
+    ids: {
+      'dohuk':'dhk-Dohuk','zakho':'dhk-Zakho','amedi':'dhk-Amedi',
+      'sumel':'dhk-Sumel','shikhan':'dhk-Shikhan','akre':'dhk-Akre'
+    },
+    centers: {
+      'dohuk':[220,175],'zakho':[115,90],'amedi':[370,95],
+      'sumel':[115,210],'shikhan':[375,255],'akre':[245,305]
+    }
+  }
+};
+
+// Keep legacy refs for backward compat
+const DIST_IDS = GOV_MAP_CONFIG['Ninawa'].ids;
+const DIST_CENTERS = GOV_MAP_CONFIG['Ninawa'].centers;
+
+// (declared above)
+try { patients = JSON.parse(localStorage.getItem('tb_patients_v2') || '[]'); } catch(e){}
+// (declared above)
+
+function save() {
+  try { localStorage.setItem('tb_patients_v2', JSON.stringify(patients)); } catch(e){}
+}
+
+// ── HELPERS ─────────────────────────────
+function daysSince(ds) {
+  if (!ds) return 0;
+  return Math.floor((Date.now() - new Date(ds).getTime()) / 86400000);
+}
+function autoPhase(pt) {
+  if (!pt.startDate) return 'Intensive';
+  const d = daysSince(pt.startDate);
+  if (d >= TOTAL_DAYS) return 'Completed';
+  if (d >= INTENSIVE_DAYS) return 'Continuation';
+  return 'Intensive';
+}
+function currentDrug(pt) {
+  const p = autoPhase(pt);
+  return p==='Intensive'?(pt.drug1||'RHZE'):p==='Continuation'?(pt.drug2||'RH'):'—';
+}
+function daysLeft(pt) {
+  if (!pt.startDate) return null;
+  return Math.max(0, TOTAL_DAYS - daysSince(pt.startDate));
+}
+function medStatus(pt) {
+  const r=pt.remaining||0, t=pt.total||0;
+  if (r<=0||t<=0) return 'empty';
+  const p=r/t;
+  if (p<=0.1) return 'critical';
+  if (p<=0.25) return 'low';
+  return 'ok';
+}
+function refillDays(pt) {
+  if (!pt.daily||!pt.remaining) return null;
+  return Math.floor(pt.remaining/pt.daily);
+}
+function fmtDate(s) {
+  if (!s) return '—';
+  try { return new Date(s).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+  catch(e){ return s; }
+}
+function addDays(ds, n) {
+  if (!ds) return null;
+  const d = new Date(ds); d.setDate(d.getDate()+n);
+  return d.toISOString().split('T')[0];
+}
+function normDist(s) {
+  return (s||'').trim().toLowerCase();
+}
+
+// ── LOGIN ────────────────────────────────
+function setTab(t) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='admin')||(i===1&&t==='patient')));
+  document.getElementById('admin-login-form').style.display=t==='admin'?'block':'none';
+  document.getElementById('patient-login-form').style.display=t==='patient'?'block':'none';
+  document.getElementById('login-error').style.display='none';
+}
+function showErr(msg) {
+  const el=document.getElementById('login-error');
+  el.textContent=msg||'Incorrect credentials.';
+  el.style.display='block';
+  setTimeout(()=>el.style.display='none',3500);
+}
+async function adminLogin() {
+  const u=document.getElementById('admin-user').value.trim().toLowerCase();
+  const p=document.getElementById('admin-pass').value;
+  if(!u||!p) return showErr();
+  try {
+    const data = await api('POST', '/api/login', {username:u, password:p});
+    token = data.token;
+    localStorage.setItem('tb_token', token);
+    currentAdmin = data.user;
+    document.querySelector('.chip').textContent = data.user.label;
+    await loadPatients();
+    showApp('admin');
+  } catch(e) { showErr(); }
+}
+async function patientLogin() {
+  const code=document.getElementById('pt-code-inp').value.trim().toUpperCase();
+  try {
+    const pt = await api('GET', '/api/patient-lookup/' + code);
+    showApp('patient', pt);
+  } catch(e) { showErr(); }
+}
+function showApp(role,pt) {
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('admin-view').style.display=role==='admin'?'block':'none';
+  document.getElementById('patient-view').style.display=role==='patient'?'block':'none';
+  if(role==='admin'){ renderStats();renderAlerts();renderMap();renderTable(); }
+  else renderPatientView(pt);
+}
+function logout() {
+  localStorage.removeItem('tb_token'); token = null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  ['admin-user','admin-pass','pt-code-inp'].forEach(id=>document.getElementById(id).value='');
+  currentAdmin=null;
+  closePanel();
+}
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  if(document.getElementById('admin-login-form').style.display!=='none') adminLogin();
+  else patientLogin();
+});
+
+// ── STATS ────────────────────────────────
+function visiblePatients() {
+  if(!currentAdmin || currentAdmin.role==='superadmin') return patients;
+  return patients.filter(p=>p.gov===currentAdmin.gov);
+}
+
+function renderStats() {
+  const list=visiblePatients();
+  const tot=list.length;
+  const intv=list.filter(p=>autoPhase(p)==='Intensive').length;
+  const cont=list.filter(p=>autoPhase(p)==='Continuation').length;
+  const alrt=list.filter(p=>['critical','low','empty'].includes(medStatus(p))&&autoPhase(p)!=='Completed'&&!p.selfcollect).length;
+  const comp=list.filter(p=>autoPhase(p)==='Completed').length;
+  const soon=list.filter(p=>{const r=refillDays(p);return r!==null&&r<=7&&autoPhase(p)!=='Completed'&&!p.selfcollect;}).length;
+  document.getElementById('stats-grid').innerHTML=`
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-val">${tot}</div></div>
+    <div class="stat-card"><div class="stat-label">Intensive</div><div class="stat-val amber">${intv}</div></div>
+    <div class="stat-card"><div class="stat-label">Continuation</div><div class="stat-val blue">${cont}</div></div>
+    <div class="stat-card"><div class="stat-label">Alerts</div><div class="stat-val ${alrt>0?'red':'green'}">${alrt}</div></div>
+    <div class="stat-card"><div class="stat-label">Refill ≤7d</div><div class="stat-val ${soon>0?'amber':'green'}">${soon}</div></div>
+    <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-val green">${comp}</div></div>
+  `;
+  renderTBChart();
+}
+
+function renderTBChart() {
+  const list=visiblePatients();
+  const normal=list.filter(p=>p.tbtype==='Normal TB').length;
+  const mdr=list.filter(p=>p.tbtype==='MDR-TB').length;
+  const xdr=list.filter(p=>p.tbtype==='XDR-TB').length;
+  const unknown=list.filter(p=>!p.tbtype).length;
+  const total=list.length||1;
+
+  // Stat cards
+  document.getElementById('tb-type-stats').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:14px;height:14px;border-radius:3px;background:#16a34a;flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-size:12px;color:var(--text2);font-weight:600">Normal TB</div>
+          <div style="height:6px;background:var(--border);border-radius:99px;margin-top:3px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(normal/total*100)}%;background:#16a34a;border-radius:99px"></div>
+          </div>
+        </div>
+        <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:#16a34a;min-width:32px;text-align:right">${normal}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:14px;height:14px;border-radius:3px;background:#d97706;flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-size:12px;color:var(--text2);font-weight:600">MDR-TB</div>
+          <div style="height:6px;background:var(--border);border-radius:99px;margin-top:3px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(mdr/total*100)}%;background:#d97706;border-radius:99px"></div>
+          </div>
+        </div>
+        <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:#d97706;min-width:32px;text-align:right">${mdr}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:14px;height:14px;border-radius:3px;background:#dc2626;flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-size:12px;color:var(--text2);font-weight:600">XDR-TB</div>
+          <div style="height:6px;background:var(--border);border-radius:99px;margin-top:3px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(xdr/total*100)}%;background:#dc2626;border-radius:99px"></div>
+          </div>
+        </div>
+        <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:#dc2626;min-width:32px;text-align:right">${xdr}</div>
+      </div>
+      ${unknown>0?`<div style="font-size:11px;color:var(--text3)">${unknown} patient(s) with no TB type assigned</div>`:''}
+    </div>
+  `;
+
+  // Pie chart
+  const canvas=document.getElementById('tb-pie');
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  const cx=80,cy=80,r=70;
+  ctx.clearRect(0,0,160,160);
+  const data=[
+    {val:normal,color:'#16a34a'},
+    {val:mdr,color:'#d97706'},
+    {val:xdr,color:'#dc2626'},
+    {val:unknown,color:'#e5e7eb'}
+  ].filter(d=>d.val>0);
+  if(!data.length){
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle='#e5e7eb';ctx.fill();
+    return;
+  }
+  let start=- Math.PI/2;
+  data.forEach(d=>{
+    const angle=(d.val/total)*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,start,start+angle);ctx.closePath();
+    ctx.fillStyle=d.color;ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+    start+=angle;
+  });
+  // center hole
+  ctx.beginPath();ctx.arc(cx,cy,r*0.5,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  // center text
+  ctx.fillStyle='#111827';ctx.font='bold 18px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(total,cx,cy-6);
+  ctx.font='10px sans-serif';ctx.fillStyle='#9ca3af';
+  ctx.fillText('patients',cx,cy+10);
+}
+
+// ── ALERTS ───────────────────────────────
+function renderAlerts() {
+  const banner=document.getElementById('alerts-banner');
+  const items=[];
+  visiblePatients().forEach(pt=>{
+    if(autoPhase(pt)==='Completed') return;
+    if(pt.selfcollect) return; // skip medication alerts for self-collecting patients
+    const s=medStatus(pt),r=refillDays(pt);
+    if(s==='empty') items.push({pt,type:'danger',msg:`${pt.name} (${pt.code}) — Medication EMPTY. Resupply immediately.`});
+    else if(s==='critical') items.push({pt,type:'danger',msg:`${pt.name} (${pt.code}) — Critical: ${pt.remaining} tablets left (${r} days).`});
+    else if(s==='low') items.push({pt,type:'warn',msg:`${pt.name} (${pt.code}) — Low supply: ~${r} days remaining.`});
+    else if(r!==null&&r<=7) items.push({pt,type:'warn',msg:`${pt.name} (${pt.code}) — Refill due in ${r} days.`});
+  });
+  if(!items.length){banner.style.display='none';return;}
+  banner.style.display='block';
+  banner.innerHTML=items.map(i=>`
+    <div class="alert-item ${i.type==='warn'?'warn':''}" onclick="openPanel('${i.pt.id}')">
+      <div class="alert-dot ${i.type==='warn'?'warn':''}"></div><span>${i.msg}</span>
+    </div>`).join('');
+}
+
+// ── MAP ──────────────────────────────────
+function renderMap() {
+  const gov = currentAdmin ? (currentAdmin.gov || 'Ninawa') : 'Ninawa';
+  const cfg = GOV_MAP_CONFIG[gov] || GOV_MAP_CONFIG['Ninawa'];
+  document.getElementById('map-title').textContent = 'District TB Distribution · ' + gov;
+  ['ninawa-svg','baghdad-svg','dohuk-svg'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = (id === cfg.svgId) ? 'block' : 'none';
+  });
+  const counts={};
+  visiblePatients().forEach(pt=>{
+    if(!pt.sector||autoPhase(pt)==='Completed') return;
+    const k=normDist(pt.sector);
+    counts[k]=(counts[k]||0)+1;
+  });
+
+  // Reset all district shapes
+  document.querySelectorAll('.dist-shape').forEach(el=>{
+    el.style.fill='#c8dbc8';
+    el.style.stroke='#9ab89a';
+  });
+
+  // Color districts by count
+  const activeSvg=document.getElementById(cfg.svgId);
+  if(activeSvg) activeSvg.querySelectorAll('.dist-shape').forEach(el=>{el.style.fill='';el.style.stroke='';});
+  const bubbles=document.getElementById(cfg.bubblesId);
+  if(bubbles) bubbles.innerHTML='';
+
+  Object.entries(counts).forEach(([name,count])=>{
+    const color=count>=5?'#dc2626':count>=2?'#d97706':'#16a34a';
+    const fillLight=count>=5?'#fee2e2':count>=2?'#fef3c7':'#dcfce7';
+
+    // Color the shape
+    const elId=cfg.ids[name];
+    if(elId){
+      const el=document.getElementById(elId);
+      if(el){el.style.fill=fillLight;el.style.stroke=color;}
+    }
+
+    // Add bubble
+    const center=cfg.centers[name];
+    if(center){
+      const [cx,cy]=center;
+      const r=Math.max(14,Math.min(26,10+count*4));
+      const bubble=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      bubble.setAttribute('cx',cx); bubble.setAttribute('cy',cy-28);
+      bubble.setAttribute('r',r); bubble.setAttribute('fill',color);
+      bubble.setAttribute('stroke','white'); bubble.setAttribute('stroke-width','2');
+      bubble.style.filter='drop-shadow(0 2px 4px rgba(0,0,0,.25))';
+      bubble.style.cursor='pointer';
+      bubbles.appendChild(bubble);
+
+      const label=document.createElementNS('http://www.w3.org/2000/svg','text');
+      label.setAttribute('x',cx); label.setAttribute('y',cy-24);
+      label.setAttribute('text-anchor','middle'); label.setAttribute('dominant-baseline','middle');
+      label.setAttribute('font-size',r>18?13:11); label.setAttribute('font-weight','700');
+      label.setAttribute('fill','white'); label.setAttribute('font-family','sans-serif');
+      label.setAttribute('pointer-events','none');
+      label.textContent=count;
+      bubbles.appendChild(label);
+    }
+  });
+
+  if(activeSvg) activeSvg.querySelectorAll('.dist-shape').forEach(el=>{
+    el.onclick=()=>{
+      const name=el.getAttribute('data-district');
+      document.getElementById('search-inp').value=name;
+      renderTable();
+    };
+  });
+
+  const tooltip=document.getElementById('map-tooltip');
+  const wrap=document.getElementById('svg-map-wrap');
+  if(activeSvg) activeSvg.querySelectorAll('.dist-shape').forEach(el=>{
+    const name=el.getAttribute('data-district');
+    const k=normDist(name);
+    const count=counts[k]||0;
+    el.addEventListener('mouseenter',e=>{
+      tooltip.innerHTML=`<strong>${name}</strong><br>Active cases: ${count}${count>0?'<br><span style="opacity:.7;font-size:11px">Tap to filter table</span>':''}`;
+      tooltip.style.display='block';
+    });
+    el.addEventListener('mousemove',e=>{
+      const rect=wrap.getBoundingClientRect();
+      tooltip.style.left=(e.clientX-rect.left+10)+'px';
+      tooltip.style.top=(e.clientY-rect.top-10)+'px';
+    });
+    el.addEventListener('mouseleave',()=>tooltip.style.display='none');
+  });
+
+  // Sidebar list
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const sidebar=document.getElementById('district-sidebar');
+  if(!sorted.length){
+    sidebar.innerHTML='<div class="map-empty">No active patients with districts assigned yet.</div>';
+    return;
+  }
+  const max=sorted[0][1];
+  sidebar.innerHTML=sorted.map(([name,count])=>{
+    const color=count>=5?'#dc2626':count>=2?'#d97706':'#16a34a';
+    const displayName=Object.keys(DIST_IDS).find(k=>k===name);
+    const label=name.charAt(0).toUpperCase()+name.slice(1);
+    return `<div class="dist-row" onclick="filterByDistrict('${label}')">
+      <span class="dist-name">${label}</span>
+      <div class="dist-bar-wrap"><div class="dist-bar" style="width:${Math.round(count/max*100)}%;background:${color}"></div></div>
+      <span class="dist-count" style="color:${color}">${count}</span>
+    </div>`;
+  }).join('');
+}
+
+function filterByDistrict(name){
+  document.getElementById('search-inp').value=name;
+  renderTable();
+}
+
+// ── TABLE ────────────────────────────────
+function renderTable(){
+  const q=(document.getElementById('search-inp').value||'').toLowerCase();
+  const pf=document.getElementById('phase-filter').value;
+  const af=document.getElementById('alert-filter').value;
+  let list=visiblePatients().filter(pt=>{
+    const ph=autoPhase(pt),s=medStatus(pt);
+    if(q&&!pt.name.toLowerCase().includes(q)&&!pt.code.toLowerCase().includes(q)&&!(pt.sector||'').toLowerCase().includes(q)) return false;
+    if(pf&&ph!==pf) return false;
+    if(af==='alert'&&!['critical','low','empty'].includes(s)) return false;
+    return true;
+  });
+  const tbody=document.getElementById('patients-tbody');
+  document.getElementById('empty-state').style.display=list.length?'none':'block';
+  if(!list.length){tbody.innerHTML='';return;}
+  tbody.innerHTML=list.map(pt=>{
+    const ph=autoPhase(pt),s=medStatus(pt),r=refillDays(pt);
+    const phPill=ph==='Intensive'?`<span class="pill phase1">Intensive</span>`
+      :ph==='Continuation'?`<span class="pill phase2">Continuation</span>`
+      :`<span class="pill pdone">✓ Done</span>`;
+    const supPill=s==='ok'?`<span class="pill med-ok">OK</span>`
+      :s==='low'?`<span class="pill med-low">Low</span>`
+      :(s==='critical'||s==='empty')?`<span class="pill med-crit">${s==='empty'?'Empty':'Critical'}</span>`
+      :`<span class="pill neutral">—</span>`;
+    const refillTxt=r===null?'—':r<=7?`<span style="color:var(--danger);font-weight:700">${r}d ⚠</span>`
+      :r<=14?`<span style="color:var(--warn);font-weight:600">${r}d</span>`:`${r}d`;
+    return `<tr onclick="openPanel('${pt.id}')">
+      <td><span class="code-tag">${pt.code}</span></td>
+      <td><strong>${pt.name}</strong></td>
+      <td>${pt.age||'—'}/${pt.gender?pt.gender[0]:'—'}</td>
+      <td>${phPill}</td>
+      <td>${fmtDate(pt.startDate)}</td>
+      <td><span style="font-family:var(--mono);font-size:12px">${currentDrug(pt)}</span></td>
+      <td>${refillTxt}</td>
+      <td>${supPill}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── PANEL ────────────────────────────────
+function openPanel(id){
+  const pt=patients.find(p=>p.id===id);
+  if(!pt) return;
+  const ph=autoPhase(pt);
+  const d=pt.startDate?daysSince(pt.startDate):0;
+  const iPct=Math.min(100,d>=INTENSIVE_DAYS?100:Math.round(d/INTENSIVE_DAYS*100));
+  const cPct=d>=INTENSIVE_DAYS?Math.min(100,Math.round((d-INTENSIVE_DAYS)/(TOTAL_DAYS-INTENSIVE_DAYS)*100)):0;
+  const dl=daysLeft(pt);
+  const contDate=addDays(pt.startDate,INTENSIVE_DAYS);
+  const endDate=addDays(pt.startDate,TOTAL_DAYS);
+
+  document.getElementById('panel-name').textContent=pt.name;
+  document.getElementById('panel-meta').innerHTML=`
+    <span class="pill ${ph==='Intensive'?'phase1':ph==='Continuation'?'phase2':'pdone'}">${ph}</span>
+    <span class="code-tag">${pt.code}</span>
+    ${pt.tbtype?`<span class="pill ${pt.tbtype==='MDR-TB'?'med-low':pt.tbtype==='XDR-TB'?'med-crit':'neutral'}">${pt.tbtype}</span>`:''}
+    ${pt.selfcollect?`<span class="pill neutral" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd">🏠 Self-Collecting</span>`:''}
+    ${pt.category?`<span class="pill neutral">${pt.category}</span>`:''}
+    ${pt.site?`<span class="pill neutral">${pt.site}</span>`:''}
+  `;
+
+  const p1w=iPct*(INTENSIVE_DAYS/TOTAL_DAYS);
+  const p2w=cPct*((TOTAL_DAYS-INTENSIVE_DAYS)/TOTAL_DAYS);
+  document.getElementById('panel-timeline').innerHTML=`
+    <div class="tl-label"><span style="color:var(--phase1)">Intensive · RHZE</span><span style="color:var(--phase2)">Continuation · RH</span></div>
+    <div class="tl-track"><div class="tl-p1" style="width:${p1w}%"></div><div class="tl-p2" style="width:${p2w}%"></div></div>
+    <div class="tl-months"><span>Start</span><span>Month 2</span><span>Month 4</span><span>Month 6</span></div>
+    <div class="tl-info">
+      <div class="tl-block" style="background:var(--phase1-light)"><div class="tv" style="color:var(--phase1)">${iPct}%</div><div class="tl">Intensive</div></div>
+      <div class="tl-block" style="background:var(--phase2-light)"><div class="tv" style="color:var(--phase2)">${cPct}%</div><div class="tl">Continuation</div></div>
+      <div class="tl-block" style="background:var(--surface2);border:1px solid var(--border)"><div class="tv">${dl!==null?dl+'d':'—'}</div><div class="tl">Days left</div></div>
+    </div>
+  `;
+
+  const rem=pt.remaining||0,tot=pt.total||0;
+  const pct=tot>0?Math.round(rem/tot*100):0;
+  const s=medStatus(pt),r=refillDays(pt);
+  const barClass=s==='ok'?'ok':(s==='critical'||s==='empty')?'danger':'warn';
+  let alertHtml=s==='empty'
+    ?`<div class="med-alert danger">⚠ Medication depleted — immediate resupply required.</div>`
+    :s==='critical'
+    ?`<div class="med-alert danger">⚠ Critical — only ${r} days remaining.</div>`
+    :s==='low'
+    ?`<div class="med-alert warn">⚠ Low supply — ~${r} days remaining. Schedule resupply.</div>`
+    :r!==null&&r<=7
+    ?`<div class="med-alert warn">⚠ Refill due in ${r} days (${fmtDate(addDays(new Date().toISOString().split('T')[0],r))}).</div>`
+    :`<div class="med-alert ok">✓ Supply adequate — ${r} days (${r!==null?Math.floor(r/7):'?'} weeks).</div>`;
+
+  document.getElementById('panel-body').innerHTML=`
+    <div class="info-section">
+      <div class="info-section-title">Patient Information</div>
+      <div class="info-grid">
+        <div class="info-cell"><div class="info-key">Age / Gender</div><div class="info-val">${pt.age||'—'} / ${pt.gender||'—'}</div></div>
+        <div class="info-cell"><div class="info-key">Phone</div><div class="info-val" style="font-family:var(--mono);font-size:12px">${pt.phone||'—'}</div></div>
+        <div class="info-cell"><div class="info-key">Governorate</div><div class="info-val">${pt.gov||'—'}</div></div>
+        <div class="info-cell"><div class="info-key">Sector / District</div><div class="info-val">${pt.sector||'—'}</div></div>
+        <div class="info-cell"><div class="info-key">Health Center</div><div class="info-val">${pt.center||'—'}</div></div>
+        <div class="info-cell"><div class="info-key">TB Type</div><div class="info-val" style="font-weight:700;color:${pt.tbtype==='XDR-TB'?'var(--danger)':pt.tbtype==='MDR-TB'?'var(--warn)':'var(--text)'}">${pt.tbtype||'—'}</div></div>
+        <div class="info-cell"><div class="info-key">TB Site</div><div class="info-val">${pt.site||'—'}</div></div>
+        <div class="info-cell"><div class="info-key">Smear</div><div class="info-val">${pt.smear||'—'}</div></div>
+        <div class="info-cell"><div class="info-key">Category</div><div class="info-val">${pt.category||'—'}</div></div>
+        <div class="info-cell"><div class="info-key">Current Drug</div><div class="info-val" style="font-family:var(--mono);font-weight:700">${currentDrug(pt)}</div></div>
+        <div class="info-cell full"><div class="info-key">Treatment Period</div><div class="info-val">${fmtDate(pt.startDate)} → ${fmtDate(endDate)} &nbsp;·&nbsp; Continuation from ${fmtDate(contDate)}</div></div>
+        ${pt.notes?`<div class="info-cell full"><div class="info-key">Notes</div><div class="info-val">${pt.notes}</div></div>`:''}
+      </div>
+    </div>
+    <div class="info-section">
+      <div class="info-section-title">Medication Tracker</div>
+      <div class="med-tracker">
+        <div class="med-top">
+          <div><div class="med-count">${rem} <span style="font-size:15px;color:var(--text2)">/ ${tot}</span></div><div class="med-sub">tablets remaining</div></div>
+          <div style="text-align:right"><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${s==='ok'?'var(--ok)':s==='low'?'var(--warn)':'var(--danger)'}">${pct}%</div><div class="med-sub">${pt.daily||'—'} tabs/day</div></div>
+        </div>
+        <div class="med-bar-track"><div class="med-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+        <div class="med-stats">
+          <span>Daily: ${pt.daily||'—'}</span>
+          <span>Weekly: ${pt.daily?pt.daily*7:'—'}</span>
+          ${r!==null?`<span>Runs out: ${fmtDate(addDays(new Date().toISOString().split('T')[0],r))}</span>`:''}
+        </div>
+        ${alertHtml}
+        <div class="update-row">
+          <input type="number" id="upd-inp" value="${rem}" placeholder="New count" min="0">
+          <button class="btn-sm green" onclick="updateMeds('${pt.id}')">Update</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('panel-footer').innerHTML=`
+    <button class="btn-sm green" onclick="refillPatient('${pt.id}')">💊 Refill</button>
+    <button class="btn-sm gray" onclick="openGallery('${pt.id}')" style="background:#1a1a2e;color:#fff;border:none">📷 Photos</button>
+    <button class="btn-sm ${pt.selfcollect?'gray':'gray'}" onclick="toggleSelfCollect('${pt.id}')" style="${pt.selfcollect?'background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd':''}">🏠 ${pt.selfcollect?'Self-Collecting ON':'Self-Collecting OFF'}</button>
+    <button class="btn-sm gray" onclick="openEditModal('${pt.id}')">✏ Edit</button>
+    <button class="btn-sm red" onclick="deletePatient('${pt.id}')">Delete</button>
+  `;
+
+  document.getElementById('panel-overlay').style.display='block';
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+async function toggleSelfCollect(id) {
+  try {
+    const data = await api('POST', '/api/patients/' + id + '/selfcollect');
+    const pt = patients.find(p => p.id === id);
+    if (pt) pt.selfcollect = data.selfcollect;
+    openPanel(id); renderStats(); renderAlerts();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+
+async function refillPatient(id) {
+  const btn = document.querySelector('.btn-refill');
+  try {
+    const data = await api('POST', '/api/patients/' + id + '/refill');
+    const pt = patients.find(p => p.id === id);
+    if (pt) { pt.remaining = data.remaining; pt.lastRefill = data.lastRefill; }
+    if (btn) { btn.textContent = '✓ Done'; btn.style.background = '#16a34a'; setTimeout(()=>{btn.textContent='💊 Refill';btn.style.background='';},1500); }
+    openPanel(id);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+
+function exportExcel(){
+  const list=visiblePatients();
+  if(!list.length){alert('No patients to export.');return;}
+  const headers=['Code','Name','Age','Gender','Phone','Governorate','District','TB Type','TB Site','Category','Smear','Health Center','Start Date','Phase','Current Drug','Days Left','Total Tablets','Remaining Tablets','Daily Dose','Refill Days','Supply Status','Last Refill','Notes'];
+  const rows=list.map(pt=>{
+    const ph=autoPhase(pt);
+    const dl=daysLeft(pt);
+    const r=refillDays(pt);
+    const s=medStatus(pt);
+    return [
+      pt.code||'',pt.name||'',pt.age||'',pt.gender||'',pt.phone||'',
+      pt.gov||'',pt.sector||'',pt.tbtype||'',pt.site||'',pt.category||'',
+      pt.smear||'',pt.center||'',pt.startDate||'',ph,currentDrug(pt),
+      dl!==null?dl:'',pt.total||'',pt.remaining||'',pt.daily||'',
+      r!==null?r:'',s,pt.lastRefill||'',pt.notes||''
+    ];
+  });
+  let csv=headers.join(',')+'\n';
+  rows.forEach(row=>{
+    csv+=row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')+'\n';
+  });
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='tb-patients-'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function closePanel(){
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('panel-overlay').style.display='none';
+}
+function updateMeds(id){
+  const val=parseInt(document.getElementById('upd-inp').value);
+  if(isNaN(val)||val<0) return;
+  const pt=patients.find(p=>p.id===id);
+  if(!pt) return;
+  pt.remaining=val;
+  save();renderStats();renderAlerts();renderMap();renderTable();openPanel(id);
+}
+async function deletePatient(id) {
+  if (!confirm('Delete this patient?')) return;
+  try {
+    await api('DELETE', '/api/patients/' + id);
+    patients = patients.filter(p => p.id !== id);
+    closePanel(); renderStats(); renderAlerts(); renderMap(); renderTable();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+
+function clearForm(){
+  ['name','phone','center','notes'].forEach(f=>document.getElementById('f-'+f).value='');
+  document.getElementById('f-age').value='';
+  document.getElementById('f-gender').value='';
+  document.getElementById('f-gov').value='';
+  document.getElementById('f-sector').innerHTML='<option value="">Select district</option>';
+  document.getElementById('f-tbtype').value='';
+  document.getElementById('f-site').value='';
+  document.getElementById('f-category').value='New';
+  document.getElementById('f-smear').value='';
+  document.getElementById('f-drug1').value='RHZE';
+  document.getElementById('f-drug2').value='RH';
+  document.getElementById('f-daily').value='';
+  document.getElementById('f-total').value='';
+  document.getElementById('f-remaining').value='';
+  document.getElementById('f-start').value=new Date().toISOString().split('T')[0];
+  document.getElementById('f-code').value='';
+  document.getElementById('f-selfcollect').checked=false;
+  regPhotos=[];
+  renderRegPhotoPreview();
+}
+function openAddModal(){
+  editingId=null;
+  const t=document.getElementById('modal-title');
+  t.textContent='Register New Patient';
+  t.dataset.id='';
+  clearForm();
+  document.getElementById('modal-overlay').style.display='flex';
+}
+function openEditModal(id){
+  const pt=patients.find(p=>p.id===id);
+  if(!pt) return;
+  editingId=id;
+  const mt=document.getElementById('modal-title');
+  mt.textContent='Edit Patient';
+  mt.dataset.id=id;
+  document.getElementById('f-name').value=pt.name||'';
+  document.getElementById('f-code').value=pt.code||'';
+  document.getElementById('f-age').value=pt.age||'';
+  document.getElementById('f-gender').value=pt.gender||'';
+  document.getElementById('f-phone').value=pt.phone||'';
+  document.getElementById('f-gov').value=pt.gov||'';
+  updateDistricts(pt.sector||'');
+  document.getElementById('f-tbtype').value=pt.tbtype||'';
+  document.getElementById('f-site').value=pt.site||'';
+  document.getElementById('f-category').value=pt.category||'New';
+  document.getElementById('f-smear').value=pt.smear||'';
+  document.getElementById('f-center').value=pt.center||'';
+  document.getElementById('f-start').value=pt.startDate||'';
+  document.getElementById('f-drug1').value=pt.drug1||'RHZE';
+  document.getElementById('f-drug2').value=pt.drug2||'RH';
+  document.getElementById('f-daily').value=pt.daily||'';
+  document.getElementById('f-total').value=pt.total||'';
+  document.getElementById('f-remaining').value=pt.remaining||'';
+  document.getElementById('f-selfcollect').checked=pt.selfcollect||false;
+  document.getElementById('f-notes').value=pt.notes||'';
+  document.getElementById('modal-overlay').style.display='flex';
+}
+function closeModal(){ document.getElementById('modal-overlay').style.display='none'; }
+async function savePatient() {
+  const f = id => document.getElementById(id);
+  const isEdit = f('modal-title').textContent === 'Edit Patient';
+  const editId = f('modal-title').dataset.id;
+  const pt = {
+    id: isEdit ? editId : ('pt_' + Date.now()),
+    name: f('f-name').value.trim(), code: f('f-code').value.trim().toUpperCase(),
+    age: f('f-age').value.trim(), gender: f('f-gender').value,
+    phone: f('f-phone').value.trim(), gov: f('f-gov').value, sector: f('f-sector').value,
+    tbtype: f('f-tbtype').value, site: f('f-site').value, category: f('f-category').value,
+    smear: f('f-smear').value, center: f('f-center').value.trim(),
+    startDate: f('f-startdate').value, drug1: f('f-drug1').value.trim(), drug2: f('f-drug2').value.trim(),
+    daily: parseInt(f('f-daily').value)||4, total: parseInt(f('f-total').value)||56,
+    remaining: parseInt(f('f-remaining').value)||56,
+    lastRefill: f('f-lastrefill').value || new Date().toISOString().split('T')[0],
+    selfcollect: f('f-selfcollect').checked, notes: f('f-notes').value.trim()
+  };
+  if (!pt.name || !pt.code) return alert('Name and code are required.');
+  try {
+    if (isEdit) {
+      await api('PUT', '/api/patients/' + editId, pt);
+      const idx = patients.findIndex(p => p.id === editId);
+      if (idx >= 0) patients[idx] = pt;
+    } else {
+      await api('POST', '/api/patients', pt);
+      if (regPhotos.length > 0) {
+        await api('POST', '/api/patients/' + pt.id + '/photos', {photos: regPhotos});
+        regPhotos = [];
+      }
+      patients.unshift(pt);
+    }
+    closeModal(); renderStats(); renderAlerts(); renderMap(); renderTable();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+
+function renderPatientView(pt){
+  document.getElementById('pt-greeting').textContent=pt.name;
+  document.getElementById('pt-code-display').textContent=pt.code;
+  const ph=autoPhase(pt),dl=daysLeft(pt);
+  const rem=pt.remaining||0,tot=pt.total||0;
+  const pct=tot>0?Math.round(rem/tot*100):0;
+  const s=medStatus(pt),r=refillDays(pt);
+  const d=pt.startDate?daysSince(pt.startDate):0;
+  const iPct=Math.min(100,d>=INTENSIVE_DAYS?100:Math.round(d/INTENSIVE_DAYS*100));
+  const cPct=d>=INTENSIVE_DAYS?Math.min(100,Math.round((d-INTENSIVE_DAYS)/(TOTAL_DAYS-INTENSIVE_DAYS)*100)):0;
+  const ringColor=s==='ok'?'#16a34a':(s==='critical'||s==='empty')?'#dc2626':'#d97706';
+  const C=2*Math.PI*34;
+  const offset=C-(C*pct/100);
+  const contDate=addDays(pt.startDate,INTENSIVE_DAYS);
+  const endDate=addDays(pt.startDate,TOTAL_DAYS);
+  let alertMsg=s==='empty'
+    ?`<div class="med-alert danger" style="margin-top:0">⚠ Your medication has run out. Contact your health worker immediately.</div>`
+    :s==='critical'
+    ?`<div class="med-alert danger" style="margin-top:0">⚠ Very low — only ${r} days left. Contact your health worker now.</div>`
+    :s==='low'
+    ?`<div class="med-alert warn" style="margin-top:0">⚠ Getting low — about ${r} days remaining. Schedule a pickup.</div>`
+    :`<div class="med-alert ok" style="margin-top:0">✓ You have enough medication for ${r!==null?Math.floor(r/7):'?'} more weeks.</div>`;
+
+  document.getElementById('pt-content').innerHTML=`
+    <div class="pt-card">
+      <h2>My Treatment</h2>
+      <div class="pt-row"><span class="pt-row-key">Current Phase</span>
+        <span class="pill ${ph==='Intensive'?'phase1':ph==='Continuation'?'phase2':'pdone'}">${ph}</span></div>
+      <div class="pt-row"><span class="pt-row-key">Current Medication</span><span class="pt-row-val" style="font-family:var(--mono)">${currentDrug(pt)}</span></div>
+      <div class="pt-row"><span class="pt-row-key">Treatment Started</span><span class="pt-row-val">${fmtDate(pt.startDate)}</span></div>
+      <div class="pt-row"><span class="pt-row-key">Continuation Starts</span><span class="pt-row-val">${fmtDate(contDate)}</span></div>
+      <div class="pt-row"><span class="pt-row-key">Treatment Ends</span><span class="pt-row-val">${fmtDate(endDate)}</span></div>
+      <div class="pt-row"><span class="pt-row-key">Days Remaining</span><span class="pt-row-val" style="color:var(--accent)">${dl!==null?dl+' days':'—'}</span></div>
+    </div>
+    <div class="pt-card">
+      <h2>Medication Supply</h2>
+      <div class="ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 88 88">
+          <circle class="ring-bg" cx="44" cy="44" r="34"/>
+          <circle class="ring-fill" cx="44" cy="44" r="34" stroke="${ringColor}" stroke-dasharray="${C}" stroke-dashoffset="${offset}"/>
+          <text class="ring-text" x="44" y="44">${pct}%</text>
+        </svg>
+        <div class="ring-info">
+          <h3>${rem} tablets</h3>
+          <p>of ${tot} total</p>
+          ${r!==null?`<div class="wk">${Math.floor(r/7)} weeks · ${r} days</div>`:''}
+        </div>
+      </div>
+      <div style="margin-top:12px">${alertMsg}</div>
+    </div>
+    <div class="pt-card">
+      <h2>6-Month Treatment Progress</h2>
+      <div class="pt-tl-track">
+        <div class="pt-tl-p1" style="width:${iPct*(INTENSIVE_DAYS/TOTAL_DAYS)}%"></div>
+        <div class="pt-tl-p2" style="width:${cPct*((TOTAL_DAYS-INTENSIVE_DAYS)/TOTAL_DAYS)}%"></div>
+      </div>
+      <div class="pt-tl-labels"><span>Start</span><span>Month 2</span><span>Month 4</span><span>Month 6</span></div>
+      <div class="pt-phase-blocks">
+        <div class="pt-phase-block" style="background:var(--phase1-light)">
+          <div class="pb-label" style="color:#92400e">Intensive</div>
+          <div class="pb-med" style="color:var(--phase1)">${pt.drug1||'RHZE'}</div>
+          <div class="pb-sub" style="color:#92400e">${iPct}% complete</div>
+        </div>
+        <div class="pt-phase-block" style="background:var(--phase2-light)">
+          <div class="pb-label" style="color:#1e40af">Continuation</div>
+          <div class="pb-med" style="color:var(--phase2)">${pt.drug2||'RH'}</div>
+          <div class="pb-sub" style="color:#1e40af">${cPct}% complete</div>
+        </div>
+      </div>
+    </div>
+    ${pt.notes?`<div class="pt-card"><h2>Notes from Health Worker</h2><p style="font-size:13px;color:var(--text2);line-height:1.7">${pt.notes}</p></div>`:''}
+  `;
+}
+
+// ── DISTRICTS BY GOVERNORATE ─────────────
+const DISTRICTS = {
+  'Ninawa': ['Al-Ayser','Al-Aymen','Makhmur','Al-Qaeyara','Al-Hadar','Al-Hamdania','Talkif','Sinjar','Baaj','Shikhan','Tal Afer'],
+  'Baghdad': ['Karkh','Rusafa','Adhamiya','Kadhimiya','Mansour','Karrada','Sadr City','Al-Rashid','New Baghdad'],
+  'Dohuk': ['Dohuk','Zakho','Amedi','Sumel','Shikhan','Akre']
+};
+
+function updateDistricts(selectedDistrict) {
+  const gov = document.getElementById('f-gov').value;
+  const sel = document.getElementById('f-sector');
+  sel.innerHTML = '<option value="">Select district</option>';
+  if (gov && DISTRICTS[gov]) {
+    DISTRICTS[gov].forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d;
+      if (selectedDistrict && d === selectedDistrict) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+  const other = document.createElement('option');
+  other.value = 'other';
+  other.textContent = 'Other';
+  sel.appendChild(other);
+}
+
+// (declared above)
+
+function handleRegPhotos(e) {
+  const files = Array.from(e.target.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      regPhotos.push({ data: ev.target.result, date: new Date().toISOString().split('T')[0], name: file.name });
+      renderRegPhotoPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+}
+
+function renderRegPhotoPreview() {
+  const container = document.getElementById('form-photo-preview');
+  if(!container) return;
+  container.innerHTML = regPhotos.map((p, i) => `
+    <div style="position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+      <img src="${p.data}" style="width:100%;height:100%;object-fit:cover"/>
+      <button onclick="regPhotos.splice(${i},1);renderRegPhotoPreview()" style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(220,38,38,.85);border:none;color:#fff;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+  `).join('');
+}
+
+document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// ── BACKUP / RESTORE ─────────────────────
+function exportData() { alert('Your data is stored in the cloud database.'); }
+
+
+function importData(e) { alert('Import not available — data is stored in cloud.'); }
+
+
+function openGallery(id) {
+  galleryPatientId = id;
+  const pt = patients.find(p => p.id === id);
+  document.getElementById('gallery-patient-name').textContent = pt ? pt.name : 'Patient Photos';
+  renderGallery();
+  document.getElementById('photo-gallery').classList.add('open');
+}
+
+function closeGallery() {
+  document.getElementById('photo-gallery').classList.remove('open');
+  galleryPatientId = null;
+}
+
+function renderGallery() {
+  const photos = getPhotos(galleryPatientId);
+  const count = photos.length;
+  document.getElementById('gallery-photo-count').textContent = count + (count === 1 ? ' photo' : ' photos');
+  const grid = document.getElementById('gallery-grid');
+
+  if(!count) {
+    grid.innerHTML = `
+      <div style="grid-column:1/-1">
+        <div class="gallery-empty">
+          <div class="gallery-empty-icon">📷</div>
+          <div class="gallery-empty-text">No photos yet.<br>Tap + to add the first one.</div>
+        </div>
+      </div>
+      <button class="gallery-add-btn" onclick="document.getElementById('photo-inp').click()">
+        <span class="gallery-add-icon">+</span>
+        <span>Add Photo</span>
+      </button>`;
+    return;
+  }
+
+  grid.innerHTML = photos.map((photo, i) => `
+    <div class="gallery-item" onclick="openLightbox('${photo.data}')">
+      <img src="${photo.data}" alt="Photo ${i+1}" loading="lazy"/>
+      <button class="gallery-item-del" onclick="event.stopPropagation();deletePhoto(${i})">✕</button>
+    </div>
+  `).join('') + `
+    <button class="gallery-add-btn" onclick="document.getElementById('photo-inp').click()">
+      <span class="gallery-add-icon">+</span>
+      <span>Add Photo</span>
+    </button>`;
+}
+
+function handlePhotoUpload(e) {
+  const file = e.target.files[0];
+  if(!file || !galleryPatientId) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const photos = getPhotos(galleryPatientId);
+    photos.push({ data: ev.target.result, date: new Date().toISOString().split('T')[0], name: file.name });
+    savePhotos(galleryPatientId, photos);
+    renderGallery();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function deletePhoto(index) {
+  if(!confirm('Delete this photo?')) return;
+  const photos = getPhotos(galleryPatientId);
+  photos.splice(index, 1);
+  savePhotos(galleryPatientId, photos);
+  renderGallery();
+}
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src = '';
+}
+
+// ── AUTO LOGIN ───────────────────────────
+window.addEventListener('load', async () => {
+  if (token) {
+    try {
+      await loadPatients();
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      currentAdmin = { username: payload.username, role: payload.role, governorate: payload.governorate, label: payload.label };
+      document.querySelector('.chip').textContent = currentAdmin.label;
+      showApp('admin');
+    } catch(e) {
+      localStorage.removeItem('tb_token');
+      token = null;
+    }
+  }
+});
+</script>
+</body>
+</html>
