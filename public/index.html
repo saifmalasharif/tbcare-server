@@ -750,7 +750,7 @@ async function adminLogin() {
   try {
     const data=await api('POST','/api/login',{username:u,password:p});
     token=data.token; localStorage.setItem('tb_token',token);
-    currentAdmin=data.user;
+    currentAdmin={...data.user, gov:data.user.governorate};
     document.querySelector('.chip').textContent=data.user.label;
     await loadPatients(); showApp('admin');
   } catch(e) { showErr(); }
@@ -1160,22 +1160,24 @@ function openPanel(id){
   document.getElementById('detail-panel').classList.add('open');
 }
 
-function toggleSelfCollect(id){
-  const pt=patients.find(p=>p.id===id);
-  if(!pt) return;
-  pt.selfcollect=!pt.selfcollect;
-  save();renderStats();renderAlerts();renderTable();openPanel(id);
+async function toggleSelfCollect(id){
+  try {
+    const data=await api('POST','/api/patients/'+id+'/selfcollect');
+    const pt=patients.find(p=>p.id===id);
+    if(pt) pt.selfcollect=data.selfcollect;
+    renderStats();renderAlerts();renderTable();openPanel(id);
+  } catch(e){ alert('Error: '+e.message); }
 }
 
-function refillPatient(id){
-  const pt=patients.find(p=>p.id===id);
-  if(!pt) return;
-  pt.remaining=pt.total||56;
-  pt.lastRefill=new Date().toISOString().split('T')[0];
-  save();renderStats();renderAlerts();renderMap();renderTable();openPanel(id);
-  // Show brief success flash
-  const btn=document.querySelector(`[onclick="refillPatient('${id}')"]`);
-  if(btn){btn.textContent='✓ Done';btn.style.background='#15803d';setTimeout(()=>{btn.textContent='💊 Refill';btn.style.background='';},1500);}
+async function refillPatient(id){
+  try {
+    const data=await api('POST','/api/patients/'+id+'/refill');
+    const pt=patients.find(p=>p.id===id);
+    if(pt){pt.remaining=data.remaining;pt.lastRefill=data.lastRefill;}
+    const btn=document.querySelector(`[onclick="refillPatient('${id}')"]`);
+    if(btn){btn.textContent='✓ Done';btn.style.background='#15803d';setTimeout(()=>{btn.textContent='💊 Refill';btn.style.background='';},1500);}
+    renderStats();renderAlerts();renderMap();renderTable();openPanel(id);
+  } catch(e){ alert('Error: '+e.message); }
 }
 
 function exportExcel(){
@@ -1218,12 +1220,15 @@ function updateMeds(id){
   const pt=patients.find(p=>p.id===id);
   if(!pt) return;
   pt.remaining=val;
-  save();renderStats();renderAlerts();renderMap();renderTable();openPanel(id);
+  renderStats();renderAlerts();renderMap();renderTable();openPanel(id);
 }
-function deletePatient(id){
+async function deletePatient(id){
   if(!confirm('Permanently delete this patient record?')) return;
-  patients=patients.filter(p=>p.id!==id);
-  save();renderStats();renderAlerts();renderMap();renderTable();closePanel();
+  try {
+    await api('DELETE','/api/patients/'+id);
+    patients=patients.filter(p=>p.id!==id);
+    renderStats();renderAlerts();renderMap();renderTable();closePanel();
+  } catch(e){ alert('Error: '+e.message); }
 }
 
 // ── MODAL ────────────────────────────────
@@ -1282,48 +1287,50 @@ function openEditModal(id){
   document.getElementById('modal-overlay').style.display='flex';
 }
 function closeModal(){ document.getElementById('modal-overlay').style.display='none'; }
-function savePatient(){
-  const name=document.getElementById('f-name').value.trim();
-  const code=document.getElementById('f-code').value.trim().toUpperCase();
+async function savePatient(){
+  const g=id=>document.getElementById(id);
+  const name=g('f-name').value.trim();
+  const code=g('f-code').value.trim().toUpperCase();
   if(!name){alert('Patient name is required.');return;}
   if(!code){alert('Patient code is required.');return;}
   const dup=patients.find(p=>p.code.toUpperCase()===code&&p.id!==editingId);
   if(dup){alert('This patient code is already in use.');return;}
-  const data={
-    name,code,
-    age:document.getElementById('f-age').value,
-    gender:document.getElementById('f-gender').value,
-    phone:document.getElementById('f-phone').value.trim(),
-    gov:document.getElementById('f-gov').value,
-    sector:document.getElementById('f-sector').value,
-    tbtype:document.getElementById('f-tbtype').value,
-    site:document.getElementById('f-site').value,
-    category:document.getElementById('f-category').value,
-    smear:document.getElementById('f-smear').value,
-    center:document.getElementById('f-center').value.trim(),
-    startDate:document.getElementById('f-start').value,
-    drug1:document.getElementById('f-drug1').value,
-    drug2:document.getElementById('f-drug2').value,
-    daily:parseInt(document.getElementById('f-daily').value)||0,
-    total:parseInt(document.getElementById('f-total').value)||0,
-    remaining:parseInt(document.getElementById('f-remaining').value)||0,
-    selfcollect: document.getElementById('f-selfcollect').checked,
-    notes:document.getElementById('f-notes').value.trim(),
+  const pt={
+    name, code,
+    age:g('f-age').value,
+    gender:g('f-gender').value,
+    phone:g('f-phone').value.trim(),
+    gov:g('f-gov').value,
+    sector:g('f-sector').value,
+    tbtype:g('f-tbtype').value,
+    site:g('f-site').value,
+    category:g('f-category').value,
+    smear:g('f-smear').value,
+    center:g('f-center').value.trim(),
+    startDate:g('f-start').value,
+    drug1:g('f-drug1').value,
+    drug2:g('f-drug2').value,
+    daily:parseInt(g('f-daily').value)||0,
+    total:parseInt(g('f-total').value)||0,
+    remaining:parseInt(g('f-remaining').value)||0,
+    selfcollect:g('f-selfcollect').checked,
+    notes:g('f-notes').value.trim(),
   };
-  if(editingId){
-    const idx=patients.findIndex(p=>p.id===editingId);
-    patients[idx]={...patients[idx],...data};
-  } else {
-    data.id='pt_'+Date.now();
-    patients.push(data);
-    // Save any photos added during registration
-    if(regPhotos.length) {
-      savePhotos(data.id, regPhotos);
-      regPhotos=[];
+  try {
+    if(editingId){
+      pt.id = editingId;
+      await api('PUT','/api/patients/'+editingId, pt);
+      const idx=patients.findIndex(p=>p.id===editingId);
+      if(idx>=0) patients[idx]={...patients[idx],...pt};
+    } else {
+      const saved = await api('POST','/api/patients', pt);
+      pt.id = saved.id || pt.id || ('pt_'+Date.now());
+      if(regPhotos.length){ await savePhotos(pt.id,regPhotos); regPhotos=[]; }
+      patients.unshift(pt);
     }
-  }
-  save();closeModal();renderStats();renderAlerts();renderMap();renderTable();
-  if(editingId) openPanel(editingId);
+    closeModal(); renderStats(); renderAlerts(); renderMap(); renderTable();
+    if(editingId) openPanel(editingId);
+  } catch(e){ alert('Save error: '+e.message); }
 }
 
 // ── PATIENT VIEW ─────────────────────────
@@ -1580,7 +1587,7 @@ window.addEventListener('load', async () => {
     try {
       await loadPatients();
       const payload=JSON.parse(atob(token.split('.')[1]));
-      currentAdmin={username:payload.username,role:payload.role,governorate:payload.governorate,label:payload.label};
+      currentAdmin={username:payload.username,role:payload.role,gov:payload.governorate,label:payload.label};
       document.querySelector('.chip').textContent=currentAdmin.label;
       showApp('admin');
     } catch(e) { localStorage.removeItem('tb_token'); token=null; }
