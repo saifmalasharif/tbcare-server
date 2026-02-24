@@ -1243,7 +1243,9 @@ function clearForm(){
 }
 function openAddModal(){
   editingId=null;
-  document.getElementById('modal-title').textContent='Register New Patient';
+  const t=document.getElementById('modal-title');
+  t.textContent='Register New Patient';
+  t.dataset.id='';
   clearForm();
   document.getElementById('modal-overlay').style.display='flex';
 }
@@ -1251,7 +1253,9 @@ function openEditModal(id){
   const pt=patients.find(p=>p.id===id);
   if(!pt) return;
   editingId=id;
-  document.getElementById('modal-title').textContent='Edit Patient';
+  const mt=document.getElementById('modal-title');
+  mt.textContent='Edit Patient';
+  mt.dataset.id=id;
   document.getElementById('f-name').value=pt.name||'';
   document.getElementById('f-code').value=pt.code||'';
   document.getElementById('f-age').value=pt.age||'';
