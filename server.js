@@ -205,17 +205,18 @@ app.get('/api/patients', auth, async (req, res) => {
 // Add patient
 app.post('/api/patients', auth, async (req, res) => {
   const p = req.body;
+  const patientId = p.id || ('pt_' + Date.now());
   try {
     await pool.query(
       `INSERT INTO patients (id, name, code, age, gender, phone, gov, sector, tbtype, site, category,
        smear, center, start_date, drug1, drug2, daily, total, remaining, last_refill, selfcollect, notes, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
-      [p.id, p.name, p.code, p.age, p.gender, p.phone, p.gov, p.sector, p.tbtype,
+      [patientId, p.name, p.code, p.age, p.gender, p.phone, p.gov, p.sector, p.tbtype,
        p.site, p.category, p.smear, p.center, p.startDate, p.drug1, p.drug2,
        p.daily, p.total, p.remaining, p.lastRefill, p.selfcollect || false, p.notes || '', req.user.username]
     );
-    await log(req.user.username, 'ADD_PATIENT', p.id, p.name, `Added patient ${p.code}`);
-    res.json({ success: true });
+    await log(req.user.username, 'ADD_PATIENT', patientId, p.name, `Added patient ${p.code}`);
+    res.json({ success: true, id: patientId });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
