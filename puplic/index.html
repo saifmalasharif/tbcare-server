@@ -454,7 +454,7 @@ tbody td { padding: 11px 14px; font-size: 13px; }
           </select>
           <button class="btn-accent" onclick="openAddModal()">+ New Patient</button>
           <button class="btn-sm gray" onclick="exportExcel()" title="Export to Excel">📊 Export</button>
-          <button class="btn-sm gray" onclick="exportData()" title="Backup data">⬇ Backup</button>
+          <button class="btn-sm gray" onclick="exportData()" title="Data is in cloud" title="Backup data">⬇ Backup</button>
           <button class="btn-sm gray" onclick="document.getElementById('import-inp').click()" title="Restore data">⬆ Restore</button>
           <input type="file" id="import-inp" accept=".json" style="display:none" onchange="importData(event)">
         </div>
@@ -586,31 +586,28 @@ tbody td { padding: 11px 14px; font-size: 13px; }
 
 <script>
 // ── CONFIG ──────────────────────────────
+const API_URL = ''; // empty = same origin (Railway serves both)
+let token = localStorage.getItem('tb_token');
+let currentAdmin = null;
+let patients = [];
 const INTENSIVE_DAYS = 60;
 const TOTAL_DAYS = 180;
-let currentAdmin = null;
-let token = localStorage.getItem('tb_token');
-let patients = [];
-let editingId = null;
-let regPhotos = [];
 
-// ── API HELPER ───────────────────────────
+// ── API HELPERS ──────────────────────────
 async function api(method, path, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' }
+  };
   if (token) opts.headers['Authorization'] = 'Bearer ' + token;
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(path, opts);
+  const res = await fetch(API_URL + path, opts);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
 
-async function loadPatients() {
-  try { patients = await api('GET', '/api/patients'); } catch(e) { patients = []; }
-}
-
-function save() {}
-
+// ── DISTRICT CONFIG ──────────────────────
 // District → SVG element ID mapping
 const GOV_MAP_CONFIG = {
   'Ninawa': {
@@ -658,12 +655,10 @@ const GOV_MAP_CONFIG = {
 const DIST_IDS = GOV_MAP_CONFIG['Ninawa'].ids;
 const DIST_CENTERS = GOV_MAP_CONFIG['Ninawa'].centers;
 
-// (declared above)
-try { patients = JSON.parse(localStorage.getItem('tb_patients_v2') || '[]'); } catch(e){}
-// (declared above)
+let editingId = null;
 
 function save() {
-  try { localStorage.setItem('tb_patients_v2', JSON.stringify(patients)); } catch(e){}
+  // Data is stored in cloud database - no localStorage needed
 }
 
 // ── HELPERS ─────────────────────────────
@@ -713,65 +708,142 @@ function normDist(s) {
 }
 
 // ── LOGIN ────────────────────────────────
+
+
 function setTab(t) {
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='admin')||(i===1&&t==='patient')));
-  document.getElementById('admin-login-form').style.display=t==='admin'?'block':'none';
-  document.getElementById('patient-login-form').style.display=t==='patient'?'block':'none';
-  document.getElementById('login-error').style.display='none';
+  document.getElementById('patient-login-form').style.display = t === 'patient' ? 'block' : 'none';
+  document.getElementById('admin-login-form').style.display = t === 'admin' ? 'block' : 'none';
+  document.getElementById('login-error').style.display = 'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&t==='admin')||(i===1&&t==='patient')));
 }
+
 function showErr(msg) {
-  const el=document.getElementById('login-error');
-  el.textContent=msg||'Incorrect credentials.';
-  el.style.display='block';
-  setTimeout(()=>el.style.display='none',3500);
+  const el = document.getElementById('login-error');
+  el.textContent = msg || 'Incorrect credentials. Please try again.';
+  el.style.display = 'block';
 }
+
 async function adminLogin() {
-  const u=document.getElementById('admin-user').value.trim().toLowerCase();
-  const p=document.getElementById('admin-pass').value;
-  if(!u||!p) return showErr();
+  const u = document.getElementById('admin-user').value.trim().toLowerCase();
+  const p = document.getElementById('admin-pass').value;
+  if (!u || !p) return showErr('Please enter username and password.');
   try {
-    const data = await api('POST', '/api/login', {username:u, password:p});
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const data = await res.json();
+    if (!res.ok) return showErr('Error: ' + (data.error || res.status));
     token = data.token;
     localStorage.setItem('tb_token', token);
     currentAdmin = data.user;
     document.querySelector('.chip').textContent = data.user.label;
     await loadPatients();
     showApp('admin');
-  } catch(e) { showErr(); }
+  } catch(e) {
+    showErr('Connection error: ' + e.message);
+  }
 }
+
 async function patientLogin() {
-  const code=document.getElementById('pt-code-inp').value.trim().toUpperCase();
+  const code = document.getElementById('pt-code-inp').value.trim().toUpperCase();
   try {
     const pt = await api('GET', '/api/patient-lookup/' + code);
     showApp('patient', pt);
-  } catch(e) { showErr(); }
+  } catch(e) {
+    showErr('Patient code not found.');
+  }
 }
-function showApp(role,pt) {
-  document.getElementById('login-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  document.getElementById('admin-view').style.display=role==='admin'?'block':'none';
-  document.getElementById('patient-view').style.display=role==='patient'?'block':'none';
-  if(role==='admin'){ renderStats();renderAlerts();renderMap();renderTable(); }
-  else renderPatientView(pt);
+
+async function loadPatients() {
+  try {
+    patients = await api('GET', '/api/patients');
+  } catch(e) {
+    console.error('Failed to load patients:', e);
+    patients = [];
+  }
 }
+
+function showApp(role, pt) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('admin-view').style.display = role === 'admin' ? 'block' : 'none';
+  document.getElementById('patient-view').style.display = role === 'patient' ? 'block' : 'none';
+  document.getElementById('login-error').style.display = 'none';
+  if (role === 'admin') {
+    try { renderStats(); } catch(e) { console.error('renderStats:', e); }
+    try { renderAlerts(); } catch(e) { console.error('renderAlerts:', e); }
+    try { renderMap(); } catch(e) { console.error('renderMap:', e); }
+    try { renderTable(); } catch(e) { console.error('renderTable:', e); }
+  }
+  if (role === 'patient') renderPatientView(pt);
+}
+
 function logout() {
-  localStorage.removeItem('tb_token'); token = null;
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
-  ['admin-user','admin-pass','pt-code-inp'].forEach(id=>document.getElementById(id).value='');
-  currentAdmin=null;
-  closePanel();
+  token = null;
+  currentAdmin = null;
+  patients = [];
+  localStorage.removeItem('tb_token');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('admin-view').style.display = 'none';
+  document.getElementById('patient-view').style.display = 'none';
+  document.getElementById('admin-user').value = '';
+  document.getElementById('admin-pass').value = '';
 }
-document.addEventListener('keydown',e=>{
-  if(e.key!=='Enter') return;
-  if(document.getElementById('admin-login-form').style.display!=='none') adminLogin();
-  else patientLogin();
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('admin-login-form').style.display !== 'none') adminLogin();
 });
 
-// ── STATS ────────────────────────────────
+// ── UTILITY FUNCTIONS ─────────────────────
+function daysSince(ds) {
+  if (!ds) return 0;
+  return Math.floor((Date.now() - new Date(ds)) / 86400000);
+}
+
+function autoPhase(pt) {
+  return daysSince(pt.startDate) < INTENSIVE_DAYS ? 'Intensive' : 'Continuation';
+}
+
+function currentDrug(pt) {
+  return autoPhase(pt) === 'Intensive' ? (pt.drug1 || 'RHZE') : (pt.drug2 || 'RH');
+}
+
+function daysLeft(pt) {
+  return TOTAL_DAYS - daysSince(pt.startDate);
+}
+
+function medStatus(pt) {
+  const d = refillDays(pt);
+  if (d <= 0) return 'empty';
+  if (d <= 2) return 'critical';
+  if (d <= 7) return 'low';
+  return 'ok';
+}
+
+function refillDays(pt) {
+  return pt.daily > 0 ? Math.floor(pt.remaining / pt.daily) : 0;
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s);
+  return isNaN(d) ? s : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function addDays(ds, n) {
+  const d = new Date(ds);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+function normDist(s) {
+  return (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 function visiblePatients() {
-  if(!currentAdmin || currentAdmin.role==='superadmin') return patients;
-  return patients.filter(p=>p.gov===currentAdmin.gov);
+  if (!currentAdmin || currentAdmin.role === 'superadmin') return patients;
+  return patients.filter(p => p.gov === currentAdmin.governorate);
 }
 
 function renderStats() {
@@ -1146,15 +1218,92 @@ function openPanel(id){
   document.getElementById('detail-panel').classList.add('open');
 }
 
-async function toggleSelfCollect(id) {
-  try {
-    const data = await api('POST', '/api/patients/' + id + '/selfcollect');
-    const pt = patients.find(p => p.id === id);
-    if (pt) pt.selfcollect = data.selfcollect;
-    openPanel(id); renderStats(); renderAlerts();
-  } catch(e) { alert('Error: ' + e.message); }
+function toggleSelfCollect(id){
+  const pt=patients.find(p=>p.id===id);
+  if(!pt) return;
+  pt.selfcollect=!pt.selfcollect;
+  // auto-saved to cloudrenderStats();renderAlerts();renderTable();openPanel(id);
 }
 
+function refillPatient(id){
+  const pt=patients.find(p=>p.id===id);
+  if(!pt) return;
+  pt.remaining=pt.total||56;
+  pt.lastRefill=new Date().toISOString().split('T')[0];
+  // auto-saved to cloudrenderStats();renderAlerts();renderMap();renderTable();openPanel(id);
+  // Show brief success flash
+  const btn=document.querySelector(`[onclick="refillPatient('${id}')"]`);
+  if(btn){btn.textContent='✓ Done';btn.style.background='#15803d';setTimeout(()=>{btn.textContent='💊 Refill';btn.style.background='';},1500);}
+}
+
+
+// ── DATA FUNCTIONS (API-connected) ────────
+
+async function savePatient() {
+  const f = id => document.getElementById(id);
+  const gov = f('f-gov').value;
+  const sector = f('f-sector').value;
+  const isEdit = f('modal-title').textContent === 'Edit Patient';
+  const id = f('modal-title').dataset.id;
+
+  const pt = {
+    id: isEdit ? id : ('pt_' + Date.now()),
+    name: f('f-name').value.trim(),
+    code: f('f-code').value.trim().toUpperCase(),
+    age: f('f-age').value.trim(),
+    gender: f('f-gender').value,
+    phone: f('f-phone').value.trim(),
+    gov, sector,
+    tbtype: f('f-tbtype').value,
+    site: f('f-site').value,
+    category: f('f-category').value,
+    smear: f('f-smear').value,
+    center: f('f-center').value.trim(),
+    startDate: f('f-startdate').value,
+    drug1: f('f-drug1').value.trim(),
+    drug2: f('f-drug2').value.trim(),
+    daily: parseInt(f('f-daily').value) || 4,
+    total: parseInt(f('f-total').value) || 56,
+    remaining: parseInt(f('f-remaining').value) || 56,
+    lastRefill: f('f-lastrefill').value || new Date().toISOString().split('T')[0],
+    selfcollect: f('f-selfcollect').checked,
+    notes: f('f-notes').value.trim()
+  };
+
+  if (!pt.name || !pt.code) return alert('Name and code are required.');
+
+  try {
+    if (isEdit) {
+      await api('PUT', '/api/patients/' + id, pt);
+      const idx = patients.findIndex(p => p.id === id);
+      if (idx >= 0) patients[idx] = pt;
+    } else {
+      await api('POST', '/api/patients', pt);
+      // Save registration photos if any
+      if (regPhotos.length > 0) {
+        await api('POST', '/api/patients/' + pt.id + '/photos', { photos: regPhotos });
+        regPhotos = [];
+      }
+      patients.unshift(pt);
+    }
+    closeModal();
+    renderStats(); renderAlerts(); renderMap(); renderTable();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function deletePatient(id) {
+  if (!confirm('Delete this patient? This cannot be undone.')) return;
+  try {
+    await api('DELETE', '/api/patients/' + id);
+    patients = patients.filter(p => p.id !== id);
+    closePanel();
+    renderStats(); renderAlerts(); renderMap(); renderTable();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
 
 async function refillPatient(id) {
   const btn = document.querySelector('.btn-refill');
@@ -1162,157 +1311,220 @@ async function refillPatient(id) {
     const data = await api('POST', '/api/patients/' + id + '/refill');
     const pt = patients.find(p => p.id === id);
     if (pt) { pt.remaining = data.remaining; pt.lastRefill = data.lastRefill; }
-    if (btn) { btn.textContent = '✓ Done'; btn.style.background = '#16a34a'; setTimeout(()=>{btn.textContent='💊 Refill';btn.style.background='';},1500); }
+    if (btn) { btn.textContent = '✓ Done'; btn.style.background = '#16a34a'; setTimeout(() => { btn.textContent = '💊 Refill'; btn.style.background = ''; }, 1500); }
     openPanel(id);
-  } catch(e) { alert('Error: ' + e.message); }
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
 }
 
+async function toggleSelfCollect(id) {
+  try {
+    const data = await api('POST', '/api/patients/' + id + '/selfcollect');
+    const pt = patients.find(p => p.id === id);
+    if (pt) pt.selfcollect = data.selfcollect;
+    openPanel(id);
+    renderStats(); renderAlerts();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
 
-function exportExcel(){
-  const list=visiblePatients();
-  if(!list.length){alert('No patients to export.');return;}
-  const headers=['Code','Name','Age','Gender','Phone','Governorate','District','TB Type','TB Site','Category','Smear','Health Center','Start Date','Phase','Current Drug','Days Left','Total Tablets','Remaining Tablets','Daily Dose','Refill Days','Supply Status','Last Refill','Notes'];
-  const rows=list.map(pt=>{
-    const ph=autoPhase(pt);
-    const dl=daysLeft(pt);
-    const r=refillDays(pt);
-    const s=medStatus(pt);
-    return [
-      pt.code||'',pt.name||'',pt.age||'',pt.gender||'',pt.phone||'',
-      pt.gov||'',pt.sector||'',pt.tbtype||'',pt.site||'',pt.category||'',
-      pt.smear||'',pt.center||'',pt.startDate||'',ph,currentDrug(pt),
-      dl!==null?dl:'',pt.total||'',pt.remaining||'',pt.daily||'',
-      r!==null?r:'',s,pt.lastRefill||'',pt.notes||''
-    ];
-  });
-  let csv=headers.join(',')+'\n';
-  rows.forEach(row=>{
-    csv+=row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')+'\n';
-  });
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download='tb-patients-'+new Date().toISOString().split('T')[0]+'.csv';
+// ── PHOTO FUNCTIONS (API-connected) ──────
+let currentGalleryId = null;
+let galleryPhotos = [];
+
+async function openGallery(id) {
+  currentGalleryId = id;
+  const pt = patients.find(p => p.id === id);
+  document.getElementById('gallery-patient-name').textContent = pt ? pt.name : '';
+  document.getElementById('photo-gallery').style.display = 'flex';
+  try {
+    galleryPhotos = await api('GET', '/api/patients/' + id + '/photos');
+    renderGallery();
+  } catch(e) {
+    galleryPhotos = [];
+    renderGallery();
+  }
+}
+
+function closeGallery() {
+  document.getElementById('photo-gallery').style.display = 'none';
+  currentGalleryId = null;
+  galleryPhotos = [];
+}
+
+function renderGallery() {
+  const grid = document.getElementById('gallery-grid');
+  const count = document.getElementById('gallery-count');
+  count.textContent = galleryPhotos.length + ' photo' + (galleryPhotos.length !== 1 ? 's' : '');
+  if (!galleryPhotos.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#666"><div style="font-size:48px;margin-bottom:12px">📷</div><div>No photos yet</div></div>';
+    return;
+  }
+  grid.innerHTML = galleryPhotos.map((ph, i) => `
+    <div style="position:relative;border-radius:8px;overflow:hidden;background:#1a1a2e;aspect-ratio:1;cursor:pointer" onclick="openLightbox('${ph.data}')">
+      <img src="${ph.data}" style="width:100%;height:100%;object-fit:cover">
+      <button onclick="event.stopPropagation();deletePhoto(${ph.id})" style="position:absolute;top:6px;right:6px;background:rgba(220,38,38,.85);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:13px">✕</button>
+      <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.5);color:#fff;font-size:10px;padding:3px 6px">${fmtDate(ph.date)}</div>
+    </div>
+  `).join('');
+}
+
+async function handlePhotoUpload(e) {
+  const files = Array.from(e.target.files);
+  const newPhotos = [];
+  for (const file of files) {
+    const data = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(file); });
+    newPhotos.push({ data, name: file.name });
+  }
+  try {
+    await api('POST', '/api/patients/' + currentGalleryId + '/photos', { photos: newPhotos });
+    galleryPhotos = await api('GET', '/api/patients/' + currentGalleryId + '/photos');
+    renderGallery();
+  } catch(e) {
+    alert('Error uploading: ' + e.message);
+  }
+}
+
+async function deletePhoto(photoId) {
+  if (!confirm('Delete this photo?')) return;
+  try {
+    await api('DELETE', '/api/photos/' + photoId);
+    galleryPhotos = galleryPhotos.filter(p => p.id !== photoId);
+    renderGallery();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function openLightbox(src) {
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lightbox-img').src = src;
+  lb.style.display = 'flex';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').style.display = 'none';
+}
+
+// ── EXPORT (still works from memory) ──────
+function exportExcel() {
+  const pts = visiblePatients();
+  if (!pts.length) return alert('No patients to export.');
+  const headers = ['Code','Name','Age','Gender','Phone','Governorate','District','TB Type','Site','Category','Smear','Health Center','Start Date','Phase','Drug','Daily Dose','Total Tablets','Remaining','Days Supply','Status','Last Refill','Self-Collecting','Notes'];
+  const rows = pts.map(p => [
+    p.code, p.name, p.age, p.gender, p.phone, p.gov, p.sector, p.tbtype,
+    p.site, p.category, p.smear, p.center, p.startDate, autoPhase(p),
+    currentDrug(p), p.daily, p.total, p.remaining, refillDays(p),
+    medStatus(p), p.lastRefill, p.selfcollect ? 'Yes' : 'No', p.notes
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(c => '"' + String(c||'').replace(/"/g,'""') + '"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'TB-Care-Export-' + new Date().toISOString().split('T')[0] + '.csv';
   a.click();
-  URL.revokeObjectURL(url);
 }
 
-function closePanel(){
-  document.getElementById('detail-panel').classList.remove('open');
-  document.getElementById('panel-overlay').style.display='none';
-}
-function updateMeds(id){
-  const val=parseInt(document.getElementById('upd-inp').value);
-  if(isNaN(val)||val<0) return;
-  const pt=patients.find(p=>p.id===id);
-  if(!pt) return;
-  pt.remaining=val;
-  save();renderStats();renderAlerts();renderMap();renderTable();openPanel(id);
-}
-async function deletePatient(id) {
-  if (!confirm('Delete this patient?')) return;
-  try {
-    await api('DELETE', '/api/patients/' + id);
-    patients = patients.filter(p => p.id !== id);
-    closePanel(); renderStats(); renderAlerts(); renderMap(); renderTable();
-  } catch(e) { alert('Error: ' + e.message); }
+// ── BACKUP/RESTORE removed — data is in cloud ──
+function exportData() {
+  alert('Your data is safely stored in the cloud. Use the Export button to download a CSV file.');
 }
 
+// ── REG PHOTOS ─────────────────────────────
+// regPhotos already declared above
 
-function clearForm(){
-  ['name','phone','center','notes'].forEach(f=>document.getElementById('f-'+f).value='');
-  document.getElementById('f-age').value='';
-  document.getElementById('f-gender').value='';
-  document.getElementById('f-gov').value='';
-  document.getElementById('f-sector').innerHTML='<option value="">Select district</option>';
-  document.getElementById('f-tbtype').value='';
-  document.getElementById('f-site').value='';
-  document.getElementById('f-category').value='New';
-  document.getElementById('f-smear').value='';
-  document.getElementById('f-drug1').value='RHZE';
-  document.getElementById('f-drug2').value='RH';
-  document.getElementById('f-daily').value='';
-  document.getElementById('f-total').value='';
-  document.getElementById('f-remaining').value='';
-  document.getElementById('f-start').value=new Date().toISOString().split('T')[0];
-  document.getElementById('f-code').value='';
-  document.getElementById('f-selfcollect').checked=false;
-  regPhotos=[];
+function handleRegPhotos(e) {
+  const files = Array.from(e.target.files);
+  files.forEach(file => {
+    const r = new FileReader();
+    r.onload = ev => { regPhotos.push({ data: ev.target.result, name: file.name }); renderRegPhotoPreview(); };
+    r.readAsDataURL(file);
+  });
+}
+
+function renderRegPhotoPreview() {
+  const wrap = document.getElementById('reg-photo-preview');
+  if (!wrap) return;
+  wrap.innerHTML = regPhotos.map((ph, i) => `
+    <div style="position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden">
+      <img src="${ph.data}" style="width:100%;height:100%;object-fit:cover">
+      <button onclick="regPhotos.splice(${i},1);renderRegPhotoPreview()" style="position:absolute;top:1px;right:1px;background:rgba(220,38,38,.9);color:#fff;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px">✕</button>
+    </div>
+  `).join('');
+}
+
+// ── MODAL HELPERS ──────────────────────────
+function clearForm() {
+  ['f-name','f-code','f-age','f-phone','f-center','f-drug1','f-drug2','f-notes'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  ['f-gender','f-gov','f-tbtype','f-site','f-category','f-smear'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.selectedIndex = 0;
+  });
+  const sc = document.getElementById('f-selfcollect'); if(sc) sc.checked = false;
+  const sd = document.getElementById('f-startdate'); if(sd) sd.value = new Date().toISOString().split('T')[0];
+  const lr = document.getElementById('f-lastrefill'); if(lr) lr.value = new Date().toISOString().split('T')[0];
+  const daily = document.getElementById('f-daily'); if(daily) daily.value = '4';
+  const total = document.getElementById('f-total'); if(total) total.value = '56';
+  const rem = document.getElementById('f-remaining'); if(rem) rem.value = '56';
+  regPhotos = [];
   renderRegPhotoPreview();
+  updateDistricts();
 }
-function openAddModal(){
-  editingId=null;
-  const t=document.getElementById('modal-title');
-  t.textContent='Register New Patient';
-  t.dataset.id='';
+
+function openAddModal() {
   clearForm();
-  document.getElementById('modal-overlay').style.display='flex';
+  document.getElementById('modal-title').textContent = 'New Patient';
+  document.getElementById('modal-title').dataset.id = '';
+  document.getElementById('modal-overlay').style.display = 'flex';
 }
-function openEditModal(id){
-  const pt=patients.find(p=>p.id===id);
-  if(!pt) return;
-  editingId=id;
-  const mt=document.getElementById('modal-title');
-  mt.textContent='Edit Patient';
-  mt.dataset.id=id;
-  document.getElementById('f-name').value=pt.name||'';
-  document.getElementById('f-code').value=pt.code||'';
-  document.getElementById('f-age').value=pt.age||'';
-  document.getElementById('f-gender').value=pt.gender||'';
-  document.getElementById('f-phone').value=pt.phone||'';
-  document.getElementById('f-gov').value=pt.gov||'';
-  updateDistricts(pt.sector||'');
-  document.getElementById('f-tbtype').value=pt.tbtype||'';
-  document.getElementById('f-site').value=pt.site||'';
-  document.getElementById('f-category').value=pt.category||'New';
-  document.getElementById('f-smear').value=pt.smear||'';
-  document.getElementById('f-center').value=pt.center||'';
-  document.getElementById('f-start').value=pt.startDate||'';
-  document.getElementById('f-drug1').value=pt.drug1||'RHZE';
-  document.getElementById('f-drug2').value=pt.drug2||'RH';
-  document.getElementById('f-daily').value=pt.daily||'';
-  document.getElementById('f-total').value=pt.total||'';
-  document.getElementById('f-remaining').value=pt.remaining||'';
-  document.getElementById('f-selfcollect').checked=pt.selfcollect||false;
-  document.getElementById('f-notes').value=pt.notes||'';
-  document.getElementById('modal-overlay').style.display='flex';
+
+function openEditModal(id) {
+  const pt = patients.find(p => p.id === id);
+  if (!pt) return;
+  clearForm();
+  document.getElementById('modal-title').textContent = 'Edit Patient';
+  document.getElementById('modal-title').dataset.id = id;
+  const s = (elId, val) => { const el = document.getElementById(elId); if(el) el.value = val || ''; };
+  s('f-name', pt.name); s('f-code', pt.code); s('f-age', pt.age);
+  s('f-phone', pt.phone); s('f-center', pt.center);
+  s('f-gender', pt.gender); s('f-gov', pt.gov);
+  updateDistricts(pt.sector);
+  s('f-tbtype', pt.tbtype); s('f-site', pt.site);
+  s('f-category', pt.category); s('f-smear', pt.smear);
+  s('f-startdate', pt.startDate); s('f-drug1', pt.drug1);
+  s('f-drug2', pt.drug2); s('f-daily', pt.daily);
+  s('f-total', pt.total); s('f-remaining', pt.remaining);
+  s('f-lastrefill', pt.lastRefill); s('f-notes', pt.notes);
+  const sc = document.getElementById('f-selfcollect'); if(sc) sc.checked = !!pt.selfcollect;
+  document.getElementById('modal-overlay').style.display = 'flex';
 }
-function closeModal(){ document.getElementById('modal-overlay').style.display='none'; }
-async function savePatient() {
-  const f = id => document.getElementById(id);
-  const isEdit = f('modal-title').textContent === 'Edit Patient';
-  const editId = f('modal-title').dataset.id;
-  const pt = {
-    id: isEdit ? editId : ('pt_' + Date.now()),
-    name: f('f-name').value.trim(), code: f('f-code').value.trim().toUpperCase(),
-    age: f('f-age').value.trim(), gender: f('f-gender').value,
-    phone: f('f-phone').value.trim(), gov: f('f-gov').value, sector: f('f-sector').value,
-    tbtype: f('f-tbtype').value, site: f('f-site').value, category: f('f-category').value,
-    smear: f('f-smear').value, center: f('f-center').value.trim(),
-    startDate: f('f-startdate').value, drug1: f('f-drug1').value.trim(), drug2: f('f-drug2').value.trim(),
-    daily: parseInt(f('f-daily').value)||4, total: parseInt(f('f-total').value)||56,
-    remaining: parseInt(f('f-remaining').value)||56,
-    lastRefill: f('f-lastrefill').value || new Date().toISOString().split('T')[0],
-    selfcollect: f('f-selfcollect').checked, notes: f('f-notes').value.trim()
-  };
-  if (!pt.name || !pt.code) return alert('Name and code are required.');
-  try {
-    if (isEdit) {
-      await api('PUT', '/api/patients/' + editId, pt);
-      const idx = patients.findIndex(p => p.id === editId);
-      if (idx >= 0) patients[idx] = pt;
-    } else {
-      await api('POST', '/api/patients', pt);
-      if (regPhotos.length > 0) {
-        await api('POST', '/api/patients/' + pt.id + '/photos', {photos: regPhotos});
-        regPhotos = [];
-      }
-      patients.unshift(pt);
-    }
-    closeModal(); renderStats(); renderAlerts(); renderMap(); renderTable();
-  } catch(e) { alert('Error: ' + e.message); }
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
 }
+
+function updateDistricts(selectedDistrict) {
+  const gov = document.getElementById('f-gov').value;
+  const sel = document.getElementById('f-sector');
+  sel.innerHTML = '<option value="">Select district</option>';
+  if (gov && DISTRICTS[gov]) {
+    DISTRICTS[gov].forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d;
+      if (selectedDistrict && d === selectedDistrict) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+  const other = document.createElement('option');
+  other.value = 'other';
+  other.textContent = 'Other';
+  sel.appendChild(other);
+}
+
+let regPhotos = [];
 
 
 function renderPatientView(pt){
@@ -1396,148 +1608,22 @@ const DISTRICTS = {
   'Dohuk': ['Dohuk','Zakho','Amedi','Sumel','Shikhan','Akre']
 };
 
-function updateDistricts(selectedDistrict) {
-  const gov = document.getElementById('f-gov').value;
-  const sel = document.getElementById('f-sector');
-  sel.innerHTML = '<option value="">Select district</option>';
-  if (gov && DISTRICTS[gov]) {
-    DISTRICTS[gov].forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d;
-      opt.textContent = d;
-      if (selectedDistrict && d === selectedDistrict) opt.selected = true;
-      sel.appendChild(opt);
-    });
-  }
-  const other = document.createElement('option');
-  other.value = 'other';
-  other.textContent = 'Other';
-  sel.appendChild(other);
-}
-
-// (declared above)
-
-function handleRegPhotos(e) {
-  const files = Array.from(e.target.files);
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      regPhotos.push({ data: ev.target.result, date: new Date().toISOString().split('T')[0], name: file.name });
-      renderRegPhotoPreview();
-    };
-    reader.readAsDataURL(file);
-  });
-  e.target.value = '';
-}
-
-function renderRegPhotoPreview() {
-  const container = document.getElementById('form-photo-preview');
-  if(!container) return;
-  container.innerHTML = regPhotos.map((p, i) => `
-    <div style="position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
-      <img src="${p.data}" style="width:100%;height:100%;object-fit:cover"/>
-      <button onclick="regPhotos.splice(${i},1);renderRegPhotoPreview()" style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(220,38,38,.85);border:none;color:#fff;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
-    </div>
-  `).join('');
-}
-
-document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
-
-// ── BACKUP / RESTORE ─────────────────────
-function exportData() { alert('Your data is stored in the cloud database.'); }
 
 
-function importData(e) { alert('Import not available — data is stored in cloud.'); }
-
-
-function openGallery(id) {
-  galleryPatientId = id;
-  const pt = patients.find(p => p.id === id);
-  document.getElementById('gallery-patient-name').textContent = pt ? pt.name : 'Patient Photos';
-  renderGallery();
-  document.getElementById('photo-gallery').classList.add('open');
-}
-
-function closeGallery() {
-  document.getElementById('photo-gallery').classList.remove('open');
-  galleryPatientId = null;
-}
-
-function renderGallery() {
-  const photos = getPhotos(galleryPatientId);
-  const count = photos.length;
-  document.getElementById('gallery-photo-count').textContent = count + (count === 1 ? ' photo' : ' photos');
-  const grid = document.getElementById('gallery-grid');
-
-  if(!count) {
-    grid.innerHTML = `
-      <div style="grid-column:1/-1">
-        <div class="gallery-empty">
-          <div class="gallery-empty-icon">📷</div>
-          <div class="gallery-empty-text">No photos yet.<br>Tap + to add the first one.</div>
-        </div>
-      </div>
-      <button class="gallery-add-btn" onclick="document.getElementById('photo-inp').click()">
-        <span class="gallery-add-icon">+</span>
-        <span>Add Photo</span>
-      </button>`;
-    return;
-  }
-
-  grid.innerHTML = photos.map((photo, i) => `
-    <div class="gallery-item" onclick="openLightbox('${photo.data}')">
-      <img src="${photo.data}" alt="Photo ${i+1}" loading="lazy"/>
-      <button class="gallery-item-del" onclick="event.stopPropagation();deletePhoto(${i})">✕</button>
-    </div>
-  `).join('') + `
-    <button class="gallery-add-btn" onclick="document.getElementById('photo-inp').click()">
-      <span class="gallery-add-icon">+</span>
-      <span>Add Photo</span>
-    </button>`;
-}
-
-function handlePhotoUpload(e) {
-  const file = e.target.files[0];
-  if(!file || !galleryPatientId) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    const photos = getPhotos(galleryPatientId);
-    photos.push({ data: ev.target.result, date: new Date().toISOString().split('T')[0], name: file.name });
-    savePhotos(galleryPatientId, photos);
-    renderGallery();
-  };
-  reader.readAsDataURL(file);
-  e.target.value = '';
-}
-
-function deletePhoto(index) {
-  if(!confirm('Delete this photo?')) return;
-  const photos = getPhotos(galleryPatientId);
-  photos.splice(index, 1);
-  savePhotos(galleryPatientId, photos);
-  renderGallery();
-}
-
-function openLightbox(src) {
-  document.getElementById('lightbox-img').src = src;
-  document.getElementById('lightbox').classList.add('open');
-}
-
-function closeLightbox() {
-  document.getElementById('lightbox').classList.remove('open');
-  document.getElementById('lightbox-img').src = '';
-}
-
-// ── AUTO LOGIN ───────────────────────────
+// ── AUTO LOGIN CHECK ───────────────────────
 window.addEventListener('load', async () => {
   if (token) {
     try {
-      await loadPatients();
+      // Verify token still valid by loading patients
+      const data = await api('GET', '/api/patients');
+      patients = data;
+      // Decode token to get user info
       const payload = JSON.parse(atob(token.split('.')[1]));
       currentAdmin = { username: payload.username, role: payload.role, governorate: payload.governorate, label: payload.label };
       document.querySelector('.chip').textContent = currentAdmin.label;
       showApp('admin');
     } catch(e) {
+      // Token expired or invalid
       localStorage.removeItem('tb_token');
       token = null;
     }
