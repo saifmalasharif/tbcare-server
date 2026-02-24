@@ -1281,6 +1281,8 @@ function openEditModal(id){
 function closeModal(){ document.getElementById('modal-overlay').style.display='none'; }
 async function savePatient() {
   const f = id => document.getElementById(id);
+  const testName = f('f-name') ? f('f-name').value : 'ELEMENT NOT FOUND';
+  if (!f('f-name')) { alert('Form elements not found - please report this'); return; }
   const isEdit = f('modal-title').textContent === 'Edit Patient';
   const editId = f('modal-title').dataset.id;
   const pt = {
@@ -1298,6 +1300,7 @@ async function savePatient() {
   };
   if (!pt.name || !pt.code) return alert('Name and code are required.');
   try {
+    console.log('Saving patient:', pt.name, pt.code, 'gov:', pt.gov);
     if (isEdit) {
       await api('PUT', '/api/patients/' + editId, pt);
       const idx = patients.findIndex(p => p.id === editId);
@@ -1311,7 +1314,7 @@ async function savePatient() {
       patients.unshift(pt);
     }
     closeModal(); renderStats(); renderAlerts(); renderMap(); renderTable();
-  } catch(e) { alert('Error: ' + e.message); }
+  } catch(e) { alert('Save failed: ' + e.message); }
 }
 
 
