@@ -1077,6 +1077,8 @@ function openPanel(id){
     <span class="code-tag">${pt.code}</span>
     ${pt.tbtype?`<span class="pill ${pt.tbtype==='MDR-TB'?'med-low':pt.tbtype==='XDR-TB'?'med-crit':'neutral'}">${pt.tbtype}</span>`:''}
     ${pt.selfcollect?`<span class="pill neutral" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd">🏠 Self-Collecting</span>`:''}
+    ${pt.extensions?`<span class="pill" style="background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd">⏱ Extended +${pt.extensions} month${pt.extensions>1?'s':''}</span>`:''}
+    ${pt.completedMonths?`<span class="pill" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7">✅ Completed ${pt.completedMonths} months</span>`:''}
     ${pt.category?`<span class="pill neutral">${pt.category}</span>`:''}
     ${pt.site?`<span class="pill neutral">${pt.site}</span>`:''}
   `;
@@ -1150,6 +1152,7 @@ function openPanel(id){
 
   document.getElementById('panel-footer').innerHTML=`
     <button class="btn-sm green" onclick="refillPatient('${pt.id}')">💊 Refill</button>
+    <button class="btn-sm" style="background:#7c3aed;color:#fff" onclick="extendTreatment('${pt.id}')">➕ Extend 1 Month</button>
     <button class="btn-sm gray" onclick="openGallery('${pt.id}')" style="background:#1a1a2e;color:#fff;border:none">📷 Photos</button>
     <button class="btn-sm ${pt.selfcollect?'gray':'gray'}" onclick="toggleSelfCollect('${pt.id}')" style="${pt.selfcollect?'background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd':''}">🏠 ${pt.selfcollect?'Self-Collecting ON':'Self-Collecting OFF'}</button>
     <button class="btn-sm gray" onclick="openEditModal('${pt.id}')">✏ Edit</button>
@@ -1222,6 +1225,33 @@ function updateMeds(id){
   pt.remaining=val;
   renderStats();renderAlerts();renderMap();renderTable();openPanel(id);
 }
+async function extendTreatment(id) {
+  const pt = patients.find(p => p.id === id);
+  if (!pt) return;
+  const currentMonths = pt.completedMonths || 6;
+  const newMonths = currentMonths + 1;
+  if (!confirm(`Extend treatment by 1 month? Total will be ${newMonths} months.`)) return;
+  const extensions = (pt.extensions || 0) + 1;
+  const extraDays = 30;
+  const extraTablets = (pt.daily || 4) * extraDays;
+  const updatedPt = {
+    ...pt,
+    extensions,
+    completedMonths: newMonths,
+    total: (pt.total || 168) + extraTablets,
+    remaining: (pt.remaining || 0) + extraTablets,
+    notes: (pt.notes ? pt.notes + ' | ' : '') + `Extended +1 month on ${new Date().toISOString().split('T')[0]}`
+  };
+  try {
+    await api('PUT', '/api/patients/' + id, updatedPt);
+    const idx = patients.findIndex(p => p.id === id);
+    if (idx >= 0) patients[idx] = updatedPt;
+    openPanel(id);
+    renderStats(); renderAlerts(); renderMap(); renderTable();
+    alert(`✅ Treatment extended to ${newMonths} months.`);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
 async function deletePatient(id){
   if(!confirm('Permanently delete this patient record?')) return;
   try {
@@ -1500,29 +1530,33 @@ let galleryPatientId = null;
 async function getPhotos(id) {
   try { return await api('GET','/api/patients/'+id+'/photos'); } catch(e) { return []; }
 }
-async function savePhotos(id,photos) {
-  try { await api('POST','/api/patients/'+id+'/photos',{photos}); } catch(e) {}
+async function savePhotos(id, photos) {
+  try { await api('POST', '/api/patients/'+id+'/photos', {photos}); } catch(e) { console.error(e); }
 }
 
-function openGallery(id) {
+async function openGallery(id) {
   galleryPatientId = id;
   const pt = patients.find(p => p.id === id);
   document.getElementById('gallery-patient-name').textContent = pt ? pt.name : 'Patient Photos';
-  renderGallery();
   document.getElementById('photo-gallery').classList.add('open');
+  document.getElementById('gallery-grid').innerHTML = '<div style="color:#999;padding:20px">Loading...</div>';
+  try {
+    galleryPhotos = await api('GET', '/api/patients/'+id+'/photos');
+  } catch(e) { galleryPhotos = []; }
+  renderGallery();
 }
 
 function closeGallery() {
   document.getElementById('photo-gallery').classList.remove('open');
   galleryPatientId = null;
+  galleryPhotos = [];
 }
 
 function renderGallery() {
-  const photos = getPhotos(galleryPatientId);
+  const photos = galleryPhotos || [];
   const count = photos.length;
   document.getElementById('gallery-photo-count').textContent = count + (count === 1 ? ' photo' : ' photos');
   const grid = document.getElementById('gallery-grid');
-
   if(!count) {
     grid.innerHTML = `
       <div style="grid-column:1/-1">
@@ -1532,44 +1566,48 @@ function renderGallery() {
         </div>
       </div>
       <button class="gallery-add-btn" onclick="document.getElementById('photo-inp').click()">
-        <span class="gallery-add-icon">+</span>
-        <span>Add Photo</span>
+        <span class="gallery-add-icon">+</span><span>Add Photo</span>
       </button>`;
     return;
   }
-
-  grid.innerHTML = photos.map((photo, i) => `
+  grid.innerHTML = photos.map((photo) => `
     <div class="gallery-item" onclick="openLightbox('${photo.data}')">
-      <img src="${photo.data}" alt="Photo ${i+1}" loading="lazy"/>
-      <button class="gallery-item-del" onclick="event.stopPropagation();deletePhoto(${i})">✕</button>
+      <img src="${photo.data}" alt="photo" loading="lazy"/>
+      <button class="gallery-item-del" onclick="event.stopPropagation();deletePhoto('${photo.id}')">✕</button>
     </div>
   `).join('') + `
     <button class="gallery-add-btn" onclick="document.getElementById('photo-inp').click()">
-      <span class="gallery-add-icon">+</span>
-      <span>Add Photo</span>
+      <span class="gallery-add-icon">+</span><span>Add Photo</span>
     </button>`;
 }
 
-function handlePhotoUpload(e) {
-  const file = e.target.files[0];
-  if(!file || !galleryPatientId) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    const photos = getPhotos(galleryPatientId);
-    photos.push({ data: ev.target.result, date: new Date().toISOString().split('T')[0], name: file.name });
-    savePhotos(galleryPatientId, photos);
+async function handlePhotoUpload(e) {
+  const files = Array.from(e.target.files);
+  if(!files.length || !galleryPatientId) return;
+  const newPhotos = [];
+  for(const file of files) {
+    const data = await new Promise(res => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.readAsDataURL(file);
+    });
+    newPhotos.push({data, name: file.name});
+  }
+  try {
+    await savePhotos(galleryPatientId, newPhotos);
+    galleryPhotos = await api('GET', '/api/patients/'+galleryPatientId+'/photos');
     renderGallery();
-  };
-  reader.readAsDataURL(file);
+  } catch(e) { alert('Photo upload error: '+e.message); }
   e.target.value = '';
 }
 
-function deletePhoto(index) {
+async function deletePhoto(photoId) {
   if(!confirm('Delete this photo?')) return;
-  const photos = getPhotos(galleryPatientId);
-  photos.splice(index, 1);
-  savePhotos(galleryPatientId, photos);
-  renderGallery();
+  try {
+    await api('DELETE', '/api/photos/'+photoId);
+    galleryPhotos = galleryPhotos.filter(p => p.id !== photoId);
+    renderGallery();
+  } catch(e) { alert('Error: '+e.message); }
 }
 
 function openLightbox(src) {
