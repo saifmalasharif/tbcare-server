@@ -1230,7 +1230,13 @@ async function extendTreatment(id) {
   if (!pt) return;
   const currentMonths = pt.completedMonths || 6;
   const newMonths = currentMonths + 1;
-  if (!confirm(`Extend treatment by 1 month? Total will be ${newMonths} months.`)) return;
+
+  // Ask for extension start date
+  const today = new Date().toISOString().split('T')[0];
+  const extDate = prompt(`Extension start date (YYYY-MM-DD):\nTotal will be ${newMonths} months.`, today);
+  if (!extDate) return; // cancelled
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(extDate)) { alert('Invalid date format. Use YYYY-MM-DD'); return; }
+
   const extensions = (pt.extensions || 0) + 1;
   const extraDays = 30;
   const extraTablets = (pt.daily || 4) * extraDays;
@@ -1240,7 +1246,7 @@ async function extendTreatment(id) {
     completedMonths: newMonths,
     total: (pt.total || 168) + extraTablets,
     remaining: (pt.remaining || 0) + extraTablets,
-    notes: (pt.notes ? pt.notes + ' | ' : '') + `Extended +1 month on ${new Date().toISOString().split('T')[0]}`
+    notes: (pt.notes ? pt.notes + ' | ' : '') + `Extended +1 month from ${extDate}`
   };
   try {
     await api('PUT', '/api/patients/' + id, updatedPt);
@@ -1248,7 +1254,7 @@ async function extendTreatment(id) {
     if (idx >= 0) patients[idx] = updatedPt;
     openPanel(id);
     renderStats(); renderAlerts(); renderMap(); renderTable();
-    alert(`✅ Treatment extended to ${newMonths} months.`);
+    alert(`✅ Treatment extended to ${newMonths} months from ${extDate}.`);
   } catch(e) { alert('Error: ' + e.message); }
 }
 
