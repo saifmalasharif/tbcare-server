@@ -1079,6 +1079,7 @@ function openPanel(id){
     ${pt.selfcollect?`<span class="pill neutral" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd">🏠 Self-Collecting</span>`:''}
     ${pt.extensions?`<span class="pill" style="background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd">⏱ Extended +${pt.extensions} month${pt.extensions>1?'s':''}</span>`:''}
     ${pt.completedMonths?`<span class="pill" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7">✅ Completed ${pt.completedMonths} months</span>`:''}
+    ${pt.treatmentStatus==='completed'?`<span class="pill" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;font-weight:700">🏁 ${pt.treatmentOutcome||'Completed'} — ${pt.treatmentEndDate||''}</span>`:''}
     ${pt.category?`<span class="pill neutral">${pt.category}</span>`:''}
     ${pt.site?`<span class="pill neutral">${pt.site}</span>`:''}
   `;
@@ -1152,7 +1153,7 @@ function openPanel(id){
 
   document.getElementById('panel-footer').innerHTML=`
     <button class="btn-sm green" onclick="refillPatient('${pt.id}')">💊 Refill</button>
-    <button class="btn-sm" style="background:#7c3aed;color:#fff" onclick="extendTreatment('${pt.id}')">➕ Extend 1 Month</button>
+    <button class="btn-sm" style="background:#7c3aed;color:#fff" onclick="extendTreatment('${pt.id}')">⏱ Manage Treatment</button>
     <button class="btn-sm gray" onclick="openGallery('${pt.id}')" style="background:#1a1a2e;color:#fff;border:none">📷 Photos</button>
     <button class="btn-sm ${pt.selfcollect?'gray':'gray'}" onclick="toggleSelfCollect('${pt.id}')" style="${pt.selfcollect?'background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd':''}">🏠 ${pt.selfcollect?'Self-Collecting ON':'Self-Collecting OFF'}</button>
     <button class="btn-sm gray" onclick="openEditModal('${pt.id}')">✏ Edit</button>
@@ -1225,38 +1226,151 @@ function updateMeds(id){
   pt.remaining=val;
   renderStats();renderAlerts();renderMap();renderTable();openPanel(id);
 }
-async function extendTreatment(id) {
+function openTreatmentModal(id) {
   const pt = patients.find(p => p.id === id);
   if (!pt) return;
-  const currentMonths = pt.completedMonths || 6;
-  const newMonths = currentMonths + 1;
-
-  // Ask for extension start date
   const today = new Date().toISOString().split('T')[0];
-  const extDate = prompt(`Extension start date (YYYY-MM-DD):\nTotal will be ${newMonths} months.`, today);
-  if (!extDate) return; // cancelled
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(extDate)) { alert('Invalid date format. Use YYYY-MM-DD'); return; }
+  const months = pt.completedMonths || 6;
+  const extensionList = pt.extensionLog ? pt.extensionLog.map((e,i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#faf5ff;border-radius:8px;border:1px solid #e9d5ff;margin-bottom:6px">
+      <span style="font-size:13px;color:#5b21b6">📅 +1 month from ${e.date} <span style="color:#9ca3af;font-size:11px">${e.reason||''}</span></span>
+      <button onclick="removeExtension('${id}',${i})" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px">Remove</button>
+    </div>`).join('') : '<p style="color:#9ca3af;font-size:13px">No extensions added yet.</p>';
 
-  const extensions = (pt.extensions || 0) + 1;
-  const extraDays = 30;
-  const extraTablets = (pt.daily || 4) * extraDays;
+  document.getElementById('treatment-modal-body').innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;color:#6b7280;margin-bottom:4px">Current treatment duration</div>
+      <div style="font-size:22px;font-weight:700;color:#1a3a1a">${months} months ${pt.treatmentStatus==='completed'?'<span style="color:#16a34a;font-size:14px">✅ Completed</span>':''}</div>
+    </div>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0">
+    <div style="margin-bottom:12px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:#374151">➕ Add Extension</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="date" id="ext-date" value="${today}" style="flex:1;padding:8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;min-width:140px">
+        <input type="text" id="ext-reason" placeholder="Reason (optional)" style="flex:2;padding:8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;min-width:140px">
+        <button onclick="addExtension('${id}')" style="padding:8px 14px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">+ Add Month</button>
+      </div>
+    </div>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0">
+    <div style="margin-bottom:12px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:#374151">📋 Extensions</div>
+      ${extensionList}
+    </div>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0">
+    <div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:#374151">🏁 End Treatment</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="date" id="end-date" value="${today}" style="flex:1;padding:8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;min-width:140px">
+        <select id="end-reason" style="flex:2;padding:8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;min-width:160px">
+          <option value="Cured">✅ Cured</option>
+          <option value="Treatment Completed">✅ Treatment Completed</option>
+          <option value="Treatment Failed">❌ Treatment Failed</option>
+          <option value="Lost to Follow-up">⚠ Lost to Follow-up</option>
+          <option value="Died">💔 Died</option>
+          <option value="Not Evaluated">— Not Evaluated</option>
+        </select>
+        <button onclick="endTreatment('${id}')" style="padding:8px 14px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">End Treatment</button>
+      </div>
+      ${pt.treatmentStatus==='completed'?`<button onclick="reopenTreatment('${id}')" style="margin-top:8px;padding:6px 12px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;cursor:pointer;font-size:12px">↩ Reopen Treatment</button>`:''}
+    </div>
+  `;
+  document.getElementById('treatment-modal').style.display='flex';
+}
+
+function closeTreatmentModal() {
+  document.getElementById('treatment-modal').style.display='none';
+}
+
+async function addExtension(id) {
+  const pt = patients.find(p => p.id === id);
+  if (!pt) return;
+  const date = document.getElementById('ext-date').value;
+  const reason = document.getElementById('ext-reason').value.trim();
+  if (!date) { alert('Please select a date.'); return; }
+  const extraTablets = (pt.daily || 4) * 30;
+  const log = pt.extensionLog ? [...pt.extensionLog] : [];
+  log.push({ date, reason });
   const updatedPt = {
     ...pt,
-    extensions,
-    completedMonths: newMonths,
-    total: (pt.total || 168) + extraTablets,
-    remaining: (pt.remaining || 0) + extraTablets,
-    notes: (pt.notes ? pt.notes + ' | ' : '') + `Extended +1 month from ${extDate}`
+    extensions: (pt.extensions||0)+1,
+    completedMonths: (pt.completedMonths||6)+1,
+    extensionLog: log,
+    total: (pt.total||168)+extraTablets,
+    remaining: (pt.remaining||0)+extraTablets,
+    notes: (pt.notes?pt.notes+' | ':'')+`Extended +1 month from ${date}${reason?' ('+reason+')':''}`
   };
   try {
-    await api('PUT', '/api/patients/' + id, updatedPt);
-    const idx = patients.findIndex(p => p.id === id);
-    if (idx >= 0) patients[idx] = updatedPt;
-    openPanel(id);
-    renderStats(); renderAlerts(); renderMap(); renderTable();
-    alert(`✅ Treatment extended to ${newMonths} months from ${extDate}.`);
-  } catch(e) { alert('Error: ' + e.message); }
+    await api('PUT','/api/patients/'+id, updatedPt);
+    const idx=patients.findIndex(p=>p.id===id);
+    if(idx>=0) patients[idx]=updatedPt;
+    openTreatmentModal(id);
+    renderStats();renderAlerts();renderMap();renderTable();
+  } catch(e){ alert('Error: '+e.message); }
 }
+
+async function removeExtension(id, index) {
+  const pt = patients.find(p => p.id === id);
+  if (!pt || !pt.extensionLog) return;
+  if (!confirm('Remove this extension? This will subtract 1 month from the treatment.')) return;
+  const extraTablets = (pt.daily||4)*30;
+  const log = [...pt.extensionLog];
+  log.splice(index, 1);
+  const updatedPt = {
+    ...pt,
+    extensions: Math.max(0,(pt.extensions||1)-1),
+    completedMonths: Math.max(6,(pt.completedMonths||7)-1),
+    extensionLog: log,
+    total: Math.max(0,(pt.total||168)-extraTablets),
+    remaining: Math.max(0,(pt.remaining||0)-extraTablets)
+  };
+  try {
+    await api('PUT','/api/patients/'+id, updatedPt);
+    const idx=patients.findIndex(p=>p.id===id);
+    if(idx>=0) patients[idx]=updatedPt;
+    openTreatmentModal(id);
+    renderStats();renderAlerts();renderMap();renderTable();
+  } catch(e){ alert('Error: '+e.message); }
+}
+
+async function endTreatment(id) {
+  const pt = patients.find(p => p.id === id);
+  if (!pt) return;
+  const date = document.getElementById('end-date').value;
+  const reason = document.getElementById('end-reason').value;
+  if (!confirm(`End treatment for ${pt.name}?\nOutcome: ${reason}\nDate: ${date}`)) return;
+  const updatedPt = {
+    ...pt,
+    treatmentStatus: 'completed',
+    treatmentEndDate: date,
+    treatmentOutcome: reason,
+    notes: (pt.notes?pt.notes+' | ':'')+`Treatment ended ${date}: ${reason}`
+  };
+  try {
+    await api('PUT','/api/patients/'+id, updatedPt);
+    const idx=patients.findIndex(p=>p.id===id);
+    if(idx>=0) patients[idx]=updatedPt;
+    closeTreatmentModal();
+    openPanel(id);
+    renderStats();renderAlerts();renderMap();renderTable();
+    alert(`✅ Treatment ended. Outcome: ${reason}`);
+  } catch(e){ alert('Error: '+e.message); }
+}
+
+async function reopenTreatment(id) {
+  const pt = patients.find(p => p.id === id);
+  if (!pt) return;
+  if (!confirm('Reopen treatment for this patient?')) return;
+  const updatedPt = { ...pt, treatmentStatus: null, treatmentEndDate: null, treatmentOutcome: null };
+  try {
+    await api('PUT','/api/patients/'+id, updatedPt);
+    const idx=patients.findIndex(p=>p.id===id);
+    if(idx>=0) patients[idx]=updatedPt;
+    openTreatmentModal(id);
+    renderStats();renderAlerts();renderMap();renderTable();
+  } catch(e){ alert('Error: '+e.message); }
+}
+
+async function extendTreatment(id) { openTreatmentModal(id); }
 
 async function deletePatient(id){
   if(!confirm('Permanently delete this patient record?')) return;
@@ -1639,5 +1753,16 @@ window.addEventListener('load', async () => {
 });
 
 </script>
+
+<!-- TREATMENT MANAGEMENT MODAL -->
+<div id="treatment-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e5e7eb">
+      <h3 style="margin:0;font-size:16px;font-weight:700">⏱ Treatment Management</h3>
+      <button onclick="closeTreatmentModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280">✕</button>
+    </div>
+    <div id="treatment-modal-body" style="padding:20px"></div>
+  </div>
+</div>
 </body>
 </html>
