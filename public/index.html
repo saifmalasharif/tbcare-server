@@ -679,9 +679,7 @@ const GOV_MAP_CONFIG = {
 const DIST_IDS = GOV_MAP_CONFIG['Ninawa'].ids;
 const DIST_CENTERS = GOV_MAP_CONFIG['Ninawa'].centers;
 
-// declared above
-try { patients = JSON.parse(localStorage.getItem('tb_patients_v2') || '[]'); } catch(e){}
-// declared above
+// patients loaded from cloud DB only — localStorage removed to prevent stale data overwrite
 
 function save() {}
 
@@ -1086,8 +1084,8 @@ function openPanel(id){
     <span class="code-tag">${pt.code}</span>
     ${pt.tbtype?`<span class="pill ${pt.tbtype==='MDR-TB'?'med-low':pt.tbtype==='XDR-TB'?'med-crit':'neutral'}">${pt.tbtype}</span>`:''}
     ${pt.selfcollect?`<span class="pill neutral" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd">🏠 Self-Collecting</span>`:''}
-    ${pt.extensions?`<span class="pill" style="background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd">⏱ Extended +${pt.extensions} month${pt.extensions>1?'s':''}</span>`:''}
-    ${pt.completedMonths?`<span class="pill" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7">✅ Completed ${pt.completedMonths} months</span>`:''}
+    ${pt.extensions&&pt.treatmentStatus!=='completed'?`<span class="pill" style="background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd">⏱ Extended +${pt.extensions} month${pt.extensions>1?'s':''}</span>`:''}
+    ${pt.completedMonths&&pt.treatmentStatus==='completed'?`<span class="pill" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7">✅ Completed ${pt.completedMonths} months</span>`:''}
     ${pt.treatmentStatus==='completed'?`<span class="pill" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;font-weight:700">🏁 ${pt.treatmentOutcome||'Completed'} — ${pt.treatmentEndDate||''}</span>`:''}
     ${pt.category?`<span class="pill neutral">${pt.category}</span>`:''}
     ${pt.site?`<span class="pill neutral">${pt.site}</span>`:''}
