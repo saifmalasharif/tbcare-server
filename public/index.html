@@ -295,7 +295,7 @@ tbody td { padding: 11px 14px; font-size: 13px; }
     </div>
     <div id="admin-login-form">
       <div class="field"><label>Username</label><input type="text" id="admin-user" placeholder="admin" autocomplete="off" autocapitalize="none"></div>
-      <div class="field"><label>Password</label><div style="position:relative"><input type="password" id="admin-pass" placeholder="••••••••" style="width:100%;padding-right:42px"><button type="button" onclick="const i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'" style="position:absolute;right:0;top:0;height:100%;width:40px;border:none;background:transparent;cursor:pointer;font-size:16px">👁</button></div></div>
+      <div class="field"><label>Password</label><div style="position:relative"><input type="password" id="admin-pass" placeholder="••••••••" style="width:100%;padding-right:42px"><button type="button" onclick="const i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Show':'Hide'" style="position:absolute;right:0;top:0;height:100%;width:44px;border:none;background:transparent;cursor:pointer;font-size:11px;color:var(--accent);font-weight:600">Show</button></div></div>
       <button class="btn-primary" onclick="adminLogin()">Sign In</button>
     </div>
     <div id="patient-login-form" style="display:none">
@@ -1231,47 +1231,138 @@ function openTreatmentModal(id) {
   if (!pt) return;
   const today = new Date().toISOString().split('T')[0];
   const months = pt.completedMonths || 6;
-  const extensionList = pt.extensionLog ? pt.extensionLog.map((e,i) => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#faf5ff;border-radius:8px;border:1px solid #e9d5ff;margin-bottom:6px">
-      <span style="font-size:13px;color:#5b21b6">📅 +1 month from ${e.date} <span style="color:#9ca3af;font-size:11px">${e.reason||''}</span></span>
-      <button onclick="removeExtension('${id}',${i})" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px">Remove</button>
-    </div>`).join('') : '<p style="color:#9ca3af;font-size:13px">No extensions added yet.</p>';
+  const baseMonths = 6;
+  const extCount = pt.extensions || 0;
+  const isCompleted = pt.treatmentStatus === 'completed';
+
+  // Build timeline pills
+  const timelinePills = [];
+  for(let m=1; m<=baseMonths; m++) {
+    const phase = m<=2 ? '#ef4444' : '#16a34a';
+    const label = m<=2 ? 'Intensive' : 'Continuation';
+    timelinePills.push(`<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="width:32px;height:32px;border-radius:50%;background:${phase};color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${m}</div>
+      <div style="font-size:9px;color:#9ca3af;text-align:center">${m===1?label:''}</div>
+    </div>`);
+  }
+  for(let e=0; e<extCount; e++) {
+    timelinePills.push(`<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="width:32px;height:32px;border-radius:50%;background:#7c3aed;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${baseMonths+e+1}</div>
+      <div style="font-size:9px;color:#7c3aed;text-align:center">+Ext</div>
+    </div>`);
+  }
+
+  // Extensions log
+  const extensionList = pt.extensionLog && pt.extensionLog.length
+    ? pt.extensionLog.map((e,i) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#faf5ff;border-radius:10px;border:1px solid #e9d5ff;margin-bottom:6px">
+        <div>
+          <span style="font-size:12px;font-weight:600;color:#5b21b6">+1 month</span>
+          <span style="font-size:12px;color:#6b7280;margin-left:6px">from ${e.date}</span>
+          ${e.reason?`<span style="font-size:11px;color:#9ca3af;margin-left:6px">— ${e.reason}</span>`:''}
+        </div>
+        <button onclick="removeExtension('${id}',${i})" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px;font-weight:600">Remove</button>
+      </div>`)
+      .join('')
+    : `<div style="padding:10px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;font-size:12px;color:#9ca3af;text-align:center">No extensions added yet</div>`;
+
+  // End treatment section
+  const endSection = isCompleted
+    ? `<div style="padding:12px 16px;background:#d1fae5;border-radius:12px;border:1px solid #6ee7b7">
+        <div style="font-size:13px;font-weight:700;color:#065f46">✅ Treatment Completed</div>
+        <div style="font-size:12px;color:#047857;margin-top:4px">Outcome: <strong>${pt.treatmentOutcome||''}</strong> &nbsp;·&nbsp; Date: <strong>${pt.treatmentEndDate||''}</strong></div>
+      </div>
+      <button onclick="reopenTreatment('${id}')" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">↩ Reopen Treatment</button>`
+    : `<div id="end-locked" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f9fafb;border-radius:10px;border:1.5px dashed #d1d5db">
+        <div style="font-size:12px;color:#9ca3af">Treatment is still active — click when ready to close it</div>
+        <button onclick="toggleEndTreatment()" style="padding:5px 14px;background:#0067B1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">End Treatment</button>
+      </div>
+      <div id="end-open" style="display:none">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <div style="flex:1;min-width:140px">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:4px;font-weight:600">END DATE</div>
+            <input type="date" id="end-date" value="${today}" style="width:100%;padding:8px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box">
+          </div>
+          <div style="flex:2;min-width:160px">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:4px;font-weight:600">OUTCOME</div>
+            <select id="end-reason" style="width:100%;padding:8px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box">
+              <option value="Cured">✅ Cured</option>
+              <option value="Treatment Completed">✅ Treatment Completed</option>
+              <option value="Treatment Failed">❌ Treatment Failed</option>
+              <option value="Lost to Follow-up">⚠ Lost to Follow-up</option>
+              <option value="Died">💔 Died</option>
+              <option value="Not Evaluated">— Not Evaluated</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="endTreatment('${id}')" style="flex:1;padding:10px;background:#16a34a;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700">✔ Confirm End Treatment</button>
+          <button onclick="toggleEndTreatment()" style="padding:10px 16px;background:#f3f4f6;color:#6b7280;border:1.5px solid #d1d5db;border-radius:10px;cursor:pointer;font-size:13px">Cancel</button>
+        </div>
+      </div>`;
 
   document.getElementById('treatment-modal-body').innerHTML = `
-    <div style="margin-bottom:16px">
-      <div style="font-size:13px;color:#6b7280;margin-bottom:4px">Current treatment duration</div>
-      <div style="font-size:22px;font-weight:700;color:#1a3a1a">${months} months ${pt.treatmentStatus==='completed'?'<span style="color:#16a34a;font-size:14px">✅ Completed</span>':''}</div>
-    </div>
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0">
-    <div style="margin-bottom:12px">
-      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:#374151">➕ Add Extension</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input type="date" id="ext-date" value="${today}" style="flex:1;padding:8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;min-width:140px">
-        <input type="text" id="ext-reason" placeholder="Reason (optional)" style="flex:2;padding:8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;min-width:140px">
-        <button onclick="addExtension('${id}')" style="padding:8px 14px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">+ Add Month</button>
+    <!-- Header status bar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:${isCompleted?'#d1fae5':'#eff6ff'};border-radius:12px;margin-bottom:16px;border:1px solid ${isCompleted?'#6ee7b7':'#bfdbfe'}">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:${isCompleted?'#065f46':'#1e40af'};letter-spacing:.05em">TREATMENT DURATION</div>
+        <div style="font-size:24px;font-weight:800;color:${isCompleted?'#065f46':'#1e3a8a'};margin-top:2px">${months} months ${extCount>0?`<span style="font-size:13px;font-weight:600;color:#7c3aed">(+${extCount} extended)</span>`:''}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:.05em">STATUS</div>
+        <div style="margin-top:4px">
+          <span style="padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;background:${isCompleted?'#16a34a':'#0067B1'};color:#fff">${isCompleted?'✅ Completed':'🟢 Active'}</span>
+        </div>
       </div>
     </div>
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0">
-    <div style="margin-bottom:12px">
-      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:#374151">📋 Extensions</div>
+
+    <!-- Timeline -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:.05em;margin-bottom:8px">TREATMENT TIMELINE</div>
+      <div style="display:flex;align-items:flex-start;gap:6px;overflow-x:auto;padding-bottom:4px">
+        ${timelinePills.join('<div style="width:16px;height:2px;background:#e5e7eb;align-self:center;flex-shrink:0"></div>')}
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <span style="font-size:10px;color:#ef4444">● Intensive (RHZE)</span>
+        <span style="font-size:10px;color:#16a34a">● Continuation (RH)</span>
+        <span style="font-size:10px;color:#7c3aed">● Extension</span>
+      </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:14px 0">
+
+    <!-- Add Extension -->
+    ${!isCompleted?`
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:.05em;margin-bottom:8px">ADD EXTENSION</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:130px">
+          <div style="font-size:10px;color:#9ca3af;margin-bottom:3px">DATE</div>
+          <input type="date" id="ext-date" value="${today}" style="width:100%;padding:8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box">
+        </div>
+        <div style="flex:2;min-width:150px">
+          <div style="font-size:10px;color:#9ca3af;margin-bottom:3px">REASON (OPTIONAL)</div>
+          <input type="text" id="ext-reason" placeholder="e.g. Incomplete response" style="width:100%;padding:8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button onclick="addExtension('${id}')" style="padding:8px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap">+ Add Month</button>
+        </div>
+      </div>
+    </div>
+    `:''}
+
+    <!-- Extensions list -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:.05em;margin-bottom:8px">EXTENSION HISTORY</div>
       ${extensionList}
     </div>
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0">
+
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:14px 0">
+
+    <!-- End Treatment -->
     <div>
-      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:#374151">🏁 End Treatment</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input type="date" id="end-date" value="${today}" style="flex:1;padding:8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;min-width:140px">
-        <select id="end-reason" style="flex:2;padding:8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;min-width:160px">
-          <option value="Cured">✅ Cured</option>
-          <option value="Treatment Completed">✅ Treatment Completed</option>
-          <option value="Treatment Failed">❌ Treatment Failed</option>
-          <option value="Lost to Follow-up">⚠ Lost to Follow-up</option>
-          <option value="Died">💔 Died</option>
-          <option value="Not Evaluated">— Not Evaluated</option>
-        </select>
-        <button onclick="endTreatment('${id}')" style="padding:8px 14px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">End Treatment</button>
-      </div>
-      ${pt.treatmentStatus==='completed'?`<button onclick="reopenTreatment('${id}')" style="margin-top:8px;padding:6px 12px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;cursor:pointer;font-size:12px">↩ Reopen Treatment</button>`:''}
+      <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:.05em;margin-bottom:8px">END TREATMENT</div>
+      ${endSection}
     </div>
   `;
   document.getElementById('treatment-modal').style.display='flex';
@@ -1371,6 +1462,15 @@ async function reopenTreatment(id) {
 }
 
 async function extendTreatment(id) { openTreatmentModal(id); }
+
+function toggleEndTreatment() {
+  const locked = document.getElementById('end-locked');
+  const open   = document.getElementById('end-open');
+  if (!locked || !open) return;
+  const isLocked = locked.style.display !== 'none';
+  locked.style.display = isLocked ? 'none' : 'flex';
+  open.style.display   = isLocked ? 'block' : 'none';
+}
 
 async function deletePatient(id){
   if(!confirm('Permanently delete this patient record?')) return;
