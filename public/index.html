@@ -689,20 +689,27 @@ function daysSince(ds) {
   if (!ds) return 0;
   return Math.floor((Date.now() - new Date(ds).getTime()) / 86400000);
 }
+function totalDays(pt) {
+  // Base 180 days + 30 days per extension
+  return TOTAL_DAYS + ((pt.extensions || 0) * 30);
+}
 function autoPhase(pt) {
   if (!pt.startDate) return 'Intensive';
   const d = daysSince(pt.startDate);
-  if (d >= TOTAL_DAYS) return 'Completed';
-  if (d >= INTENSIVE_DAYS) return 'Continuation';
+  const total = totalDays(pt);
+  // Only mark Completed if manually ended OR days exceeded AND no active extensions
+  if (pt.treatmentStatus === 'completed') return 'Completed';
+  if (d >= total) return 'Completed';
+  if (d >= INTENSIVE_DAYS) return (pt.extensions > 0) ? 'Extended' : 'Continuation';
   return 'Intensive';
 }
 function currentDrug(pt) {
   const p = autoPhase(pt);
-  return p==='Intensive'?(pt.drug1||'RHZE'):p==='Continuation'?(pt.drug2||'RH'):'—';
+  return p==='Intensive'?(pt.drug1||'RHZE'):p==='Continuation'||p==='Extended'?(pt.drug2||'RH'):'—';
 }
 function daysLeft(pt) {
   if (!pt.startDate) return null;
-  return Math.max(0, TOTAL_DAYS - daysSince(pt.startDate));
+  return Math.max(0, totalDays(pt) - daysSince(pt.startDate));
 }
 function medStatus(pt) {
   const r=pt.remaining||0, t=pt.total||0;
@@ -792,7 +799,7 @@ function renderStats() {
   const list=visiblePatients();
   const tot=list.length;
   const intv=list.filter(p=>autoPhase(p)==='Intensive').length;
-  const cont=list.filter(p=>autoPhase(p)==='Continuation').length;
+  const cont=list.filter(p=>autoPhase(p)==='Continuation'||autoPhase(p)==='Extended').length;
   const alrt=list.filter(p=>['critical','low','empty'].includes(medStatus(p))&&autoPhase(p)!=='Completed'&&!p.selfcollect).length;
   const comp=list.filter(p=>autoPhase(p)==='Completed').length;
   const soon=list.filter(p=>{const r=refillDays(p);return r!==null&&r<=7&&autoPhase(p)!=='Completed'&&!p.selfcollect;}).length;
@@ -1039,6 +1046,7 @@ function renderTable(){
     const ph=autoPhase(pt),s=medStatus(pt),r=refillDays(pt);
     const phPill=ph==='Intensive'?`<span class="pill phase1">Intensive</span>`
       :ph==='Continuation'?`<span class="pill phase2">Continuation</span>`
+      :ph==='Extended'?`<span class="pill" style="background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:700">⏱ Extended</span>`
       :`<span class="pill pdone">✓ Done</span>`;
     const supPill=s==='ok'?`<span class="pill med-ok">OK</span>`
       :s==='low'?`<span class="pill med-low">Low</span>`
@@ -1066,14 +1074,14 @@ function openPanel(id){
   const ph=autoPhase(pt);
   const d=pt.startDate?daysSince(pt.startDate):0;
   const iPct=Math.min(100,d>=INTENSIVE_DAYS?100:Math.round(d/INTENSIVE_DAYS*100));
-  const cPct=d>=INTENSIVE_DAYS?Math.min(100,Math.round((d-INTENSIVE_DAYS)/(TOTAL_DAYS-INTENSIVE_DAYS)*100)):0;
+  const cPct=d>=INTENSIVE_DAYS?Math.min(100,Math.round((d-INTENSIVE_DAYS)/(totalDays(pt)-INTENSIVE_DAYS)*100)):0;
   const dl=daysLeft(pt);
   const contDate=addDays(pt.startDate,INTENSIVE_DAYS);
-  const endDate=addDays(pt.startDate,TOTAL_DAYS);
+  const endDate=addDays(pt.startDate,totalDays(pt));
 
   document.getElementById('panel-name').textContent=pt.name;
   document.getElementById('panel-meta').innerHTML=`
-    <span class="pill ${ph==='Intensive'?'phase1':ph==='Continuation'?'phase2':'pdone'}">${ph}</span>
+    <span class="pill ${ph==='Intensive'?'phase1':ph==='Continuation'||ph==='Extended'?'phase2':'pdone'}">${ph==='Extended'?'⏱ Extended':ph}</span>
     <span class="code-tag">${pt.code}</span>
     ${pt.tbtype?`<span class="pill ${pt.tbtype==='MDR-TB'?'med-low':pt.tbtype==='XDR-TB'?'med-crit':'neutral'}">${pt.tbtype}</span>`:''}
     ${pt.selfcollect?`<span class="pill neutral" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd">🏠 Self-Collecting</span>`:''}
@@ -1593,12 +1601,12 @@ function renderPatientView(pt){
   const s=medStatus(pt),r=refillDays(pt);
   const d=pt.startDate?daysSince(pt.startDate):0;
   const iPct=Math.min(100,d>=INTENSIVE_DAYS?100:Math.round(d/INTENSIVE_DAYS*100));
-  const cPct=d>=INTENSIVE_DAYS?Math.min(100,Math.round((d-INTENSIVE_DAYS)/(TOTAL_DAYS-INTENSIVE_DAYS)*100)):0;
+  const cPct=d>=INTENSIVE_DAYS?Math.min(100,Math.round((d-INTENSIVE_DAYS)/(totalDays(pt)-INTENSIVE_DAYS)*100)):0;
   const ringColor=s==='ok'?'#16a34a':(s==='critical'||s==='empty')?'#dc2626':'#d97706';
   const C=2*Math.PI*34;
   const offset=C-(C*pct/100);
   const contDate=addDays(pt.startDate,INTENSIVE_DAYS);
-  const endDate=addDays(pt.startDate,TOTAL_DAYS);
+  const endDate=addDays(pt.startDate,totalDays(pt));
   let alertMsg=s==='empty'
     ?`<div class="med-alert danger" style="margin-top:0">⚠ Your medication has run out. Contact your health worker immediately.</div>`
     :s==='critical'
