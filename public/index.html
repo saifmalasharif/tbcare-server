@@ -446,6 +446,7 @@ tbody td { padding: 11px 14px; font-size: 13px; }
             <option value="">All Phases</option>
             <option value="Intensive">Intensive</option>
             <option value="Continuation">Continuation</option>
+            <option value="Extended">Extended</option>
             <option value="Completed">Completed</option>
           </select>
           <select class="filter-sel" id="alert-filter" onchange="renderTable()">
@@ -1092,12 +1093,13 @@ function openPanel(id){
     ${pt.site?`<span class="pill neutral">${pt.site}</span>`:''}
   `;
 
-  const p1w=iPct*(INTENSIVE_DAYS/TOTAL_DAYS);
-  const p2w=cPct*((TOTAL_DAYS-INTENSIVE_DAYS)/TOTAL_DAYS);
+  const _td=totalDays(pt);
+  const p1w=iPct*(INTENSIVE_DAYS/_td);
+  const p2w=cPct*((_td-INTENSIVE_DAYS)/_td);
   document.getElementById('panel-timeline').innerHTML=`
     <div class="tl-label"><span style="color:var(--phase1)">Intensive · RHZE</span><span style="color:var(--phase2)">Continuation · RH</span></div>
     <div class="tl-track"><div class="tl-p1" style="width:${p1w}%"></div><div class="tl-p2" style="width:${p2w}%"></div></div>
-    <div class="tl-months"><span>Start</span><span>Month 2</span><span>Month 4</span><span>Month 6</span></div>
+    <div class="tl-months"><span>Start</span><span>Month 2</span><span>Month 4</span><span>Month 6</span>${pt.extensions>0?`<span style="color:#7c3aed;font-weight:700">Month ${6+(pt.extensions||0)}</span>`:''}</div>
     <div class="tl-info">
       <div class="tl-block" style="background:var(--phase1-light)"><div class="tv" style="color:var(--phase1)">${iPct}%</div><div class="tl">Intensive</div></div>
       <div class="tl-block" style="background:var(--phase2-light)"><div class="tv" style="color:var(--phase2)">${cPct}%</div><div class="tl">Continuation</div></div>
@@ -1396,7 +1398,7 @@ async function addExtension(id) {
     extensionLog: log,
     total: (pt.total||168)+extraTablets,
     remaining: (pt.remaining||0)+extraTablets,
-    notes: (pt.notes?pt.notes+' | ':'')+`Extended +1 month from ${date}${reason?' ('+reason+')':''}`
+    notes: log.map(e=>'Extended +1 month from '+e.date+(e.reason?' ('+e.reason+')':'')).join(' | '),
   };
   try {
     await api('PUT','/api/patients/'+id, updatedPt);
@@ -1645,10 +1647,10 @@ function renderPatientView(pt){
     <div class="pt-card">
       <h2>6-Month Treatment Progress</h2>
       <div class="pt-tl-track">
-        <div class="pt-tl-p1" style="width:${iPct*(INTENSIVE_DAYS/TOTAL_DAYS)}%"></div>
-        <div class="pt-tl-p2" style="width:${cPct*((TOTAL_DAYS-INTENSIVE_DAYS)/TOTAL_DAYS)}%"></div>
+        <div class="pt-tl-p1" style="width:${iPct*(INTENSIVE_DAYS/totalDays(pt))}%"></div>
+        <div class="pt-tl-p2" style="width:${cPct*((totalDays(pt)-INTENSIVE_DAYS)/totalDays(pt))}%"></div>
       </div>
-      <div class="pt-tl-labels"><span>Start</span><span>Month 2</span><span>Month 4</span><span>Month 6</span></div>
+      <div class="pt-tl-labels"><span>Start</span><span>Month 2</span><span>Month 4</span><span>Month 6</span>${pt.extensions>0?`<span style="color:#7c3aed;font-weight:600">Month ${6+(pt.extensions||0)}</span>`:''}</div>
       <div class="pt-phase-blocks">
         <div class="pt-phase-block" style="background:var(--phase1-light)">
           <div class="pb-label" style="color:#92400e">Intensive</div>
