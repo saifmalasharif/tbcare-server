@@ -1274,8 +1274,8 @@ function openTreatmentModal(id) {
       </div>
       <button onclick="reopenTreatment('${id}')" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">↩ Reopen Treatment</button>`
     : `<div id="end-locked" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f9fafb;border-radius:10px;border:1.5px dashed #d1d5db">
-        <div style="font-size:12px;color:#9ca3af">Treatment is still active — click when ready to close it</div>
-        <button onclick="toggleEndTreatment()" style="padding:5px 14px;background:#0067B1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">End Treatment</button>
+        <div style="font-size:12px;color:#9ca3af">Treatment is still active — click <strong>Edit</strong> when you are ready to end it</div>
+        <button onclick="toggleEndTreatment()" style="padding:5px 14px;background:#0067B1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">✏ Edit</button>
       </div>
       <div id="end-open" style="display:none">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
@@ -1296,7 +1296,7 @@ function openTreatmentModal(id) {
           </div>
         </div>
         <div style="display:flex;gap:8px">
-          <button onclick="endTreatment('${id}')" style="flex:1;padding:10px;background:#16a34a;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700">✔ Confirm End Treatment</button>
+          <button onclick="endTreatment('${id}')" style="flex:1;padding:10px;background:#16a34a;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700">✔ Done</button>
           <button onclick="toggleEndTreatment()" style="padding:10px 16px;background:#f3f4f6;color:#6b7280;border:1.5px solid #d1d5db;border-radius:10px;cursor:pointer;font-size:13px">Cancel</button>
         </div>
       </div>`;
@@ -1862,6 +1862,9 @@ window.addEventListener('load', async () => {
       <button onclick="closeTreatmentModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280">✕</button>
     </div>
     <div id="treatment-modal-body" style="padding:20px"></div>
+    <div style="padding:12px 20px;border-top:1px solid #e5e7eb;background:#f9fafb;border-radius:0 0 16px 16px">
+      <button onclick="closeTreatmentModal();renderStats();renderAlerts();renderMap();renderTable();" style="width:100%;padding:12px;background:#0067B1;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700">✔ Done — Close &amp; Update</button>
+    </div>
   </div>
 </div>
 </body>
