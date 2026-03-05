@@ -380,32 +380,7 @@ app.get('/api/patient-lookup/:code', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/reset-passwords-tbcare2024', async (req, res) => {
-  try {
-    const users = [
-      ['saif','tb2024!secure','superadmin',null,'SAIF'],
-      ['ninawa','nnw2024!tb','admin','Ninawa','NINAWA'],
-      ['baghdad','bgd2024!tb','admin','Baghdad','BAGHDAD'],
-      ['dohuk','dhk2024!tb','admin','Dohuk','DOHUK'],
-    ];
-    for (const [username,password,role,gov,label] of users) {
-      const hash = await bcrypt.hash(password, 10);
-      const ex = await pool.query('SELECT id FROM users WHERE username=$1', [username]);
-      if (ex.rows.length > 0) {
-        await pool.query(
-          'UPDATE users SET password=$1,role=$2,governorate=$3,label=$4,active=true WHERE username=$5',
-          [hash,role,gov,label,username]
-        );
-      } else {
-        await pool.query(
-          'INSERT INTO users (username,password,role,governorate,label) VALUES ($1,$2,$3,$4,$5)',
-          [username,hash,role,gov,label]
-        );
-      }
-    }
-    res.json({ success: true, message: 'All passwords reset' });
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
+
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
