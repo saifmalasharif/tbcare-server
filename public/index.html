@@ -455,12 +455,12 @@ tbody td{padding:11px 14px;font-size:13px}
         <div class="form-section-title">Patient Information</div>
         <div class="form-grid">
           <div class="form-field full"><label>Full Name</label><input type="text" id="f-name" placeholder="Patient full name"></div>
-          <div class="form-field"><label>Patient Code</label><input type="text" id="f-code" placeholder="NNW-001" style="font-family:var(--mono)"><div class="hint">Must be unique</div></div>
+          <div class="form-field"><label>Patient Code</label><input type="text" id="f-code" placeholder="Auto-generated" style="font-family:var(--mono)" oninput="validateCode()"><div class="hint" id="code-hint">Must be unique</div><div id="code-warning" style="display:none;font-size:11px;color:#d97706;margin-top:3px;background:#fef3c7;padding:5px 8px;border-radius:6px;border:1px solid #fcd34d">⚠ Normal TB code format should be 000NN00D00 — saving anyway</div></div>
           <div class="form-field"><label>Age</label><input type="number" id="f-age" placeholder="35"></div>
           <div class="form-field"><label>Gender</label><select id="f-gender"><option value="">Select</option><option>Male</option><option>Female</option></select></div>
           <div class="form-field"><label>Phone</label><input type="text" id="f-phone" placeholder="+964 7XX XXX XXXX"></div>
           <div class="form-field"><label>Governorate</label>
-            <select id="f-gov" onchange="updateDistricts()">
+            <select id="f-gov" onchange="updateDistricts();autoGenerateCode()">
               <option value="">Select governorate</option>
               <option value="Ninawa">Ninawa</option>
               <option value="Baghdad">Baghdad</option>
@@ -474,7 +474,7 @@ tbody td{padding:11px 14px;font-size:13px}
         <div class="form-section-title">TB Classification</div>
         <div class="form-grid">
           <div class="form-field"><label>TB Type</label>
-            <select id="f-tbtype"><option value="">Select type</option><option value="Normal TB">Normal TB</option><option value="MDR-TB">MDR-TB</option><option value="XDR-TB">XDR-TB</option></select>
+            <select id="f-tbtype" onchange="autoGenerateCode()"><option value="">Select type</option><option value="Normal TB">Normal TB</option><option value="MDR-TB">MDR-TB</option><option value="XDR-TB">XDR-TB</option></select>
           </div>
           <div class="form-field"><label>TB Site</label><select id="f-site"><option value="">Select</option><option value="Pulmonary">Pulmonary</option><option value="Extrapulmonary">Extrapulmonary</option></select></div>
           <div class="form-field"><label>Patient Category</label><select id="f-category"><option value="New">New Case</option><option value="Retreatment">Retreatment</option></select></div>
@@ -1261,6 +1261,59 @@ const DISTRICTS={
   'Baghdad':['Karkh','Rusafa','Adhamiya','Kadhimiya','Mansour','Karrada','Sadr City','Al-Rashid','New Baghdad'],
   'Dohuk':['Dohuk','Zakho','Amedi','Sumel','Shikhan','Akre']
 };
+
+// ── CODE GENERATION ────────────────────────────────────────────
+const GOV_PREFIX = { 'Ninawa': 'NN', 'Baghdad': 'BGD', 'Dohuk': 'DHK' };
+
+function autoGenerateCode() {
+  if (editingId) return; // don't overwrite when editing
+  const gov = document.getElementById('f-gov').value;
+  const tbtype = document.getElementById('f-tbtype').value;
+  const codeInp = document.getElementById('f-code');
+  const hint = document.getElementById('code-hint');
+  const warning = document.getElementById('code-warning');
+
+  // Hide warning on type change
+  if (warning) warning.style.display = 'none';
+
+  if (!gov || !tbtype) return;
+
+  const prefix = GOV_PREFIX[gov];
+  if (!prefix) return;
+
+  if (tbtype === 'MDR-TB' || tbtype === 'XDR-TB') {
+    const type = tbtype === 'MDR-TB' ? 'MDR' : 'XDR';
+    // Count existing patients of same gov + type
+    const existing = patients.filter(p =>
+      p.gov === gov &&
+      p.tbtype === tbtype &&
+      p.id !== editingId
+    );
+    const nextNum = existing.length + 1;
+    const generated = prefix + '-' + type + '-' + nextNum;
+    codeInp.value = generated;
+    if (hint) hint.textContent = 'Auto-generated — you can edit if needed';
+  } else if (tbtype === 'Normal TB') {
+    codeInp.value = '';
+    codeInp.placeholder = 'e.g. 001NN02D26';
+    if (hint) hint.textContent = 'Enter code manually — format: 000NN00D00';
+  }
+}
+
+function validateCode() {
+  const tbtype = document.getElementById('f-tbtype').value;
+  const code = document.getElementById('f-code').value.trim();
+  const warning = document.getElementById('code-warning');
+  if (!warning) return;
+  if (tbtype === 'Normal TB' && code.length > 0) {
+    // Pattern: 3 digits + 2 letters + 2 digits + 1 letter + 2 digits
+    const valid = /^\d{3}[A-Za-z]{2}\d{2}[A-Za-z]\d{2}$/.test(code);
+    warning.style.display = valid ? 'none' : 'block';
+  } else {
+    warning.style.display = 'none';
+  }
+}
+
 function updateDistricts(selectedDistrict){
   const gov=document.getElementById('f-gov').value;
   const sel=document.getElementById('f-sector');
@@ -1293,6 +1346,9 @@ function clearForm(){
   document.getElementById('f-remaining').value='';
   document.getElementById('f-start').value=new Date().toISOString().split('T')[0];
   document.getElementById('f-code').value='';
+  document.getElementById('f-code').placeholder='Auto-generated';
+  const ch=document.getElementById('code-hint');if(ch)ch.textContent='Must be unique';
+  const cw=document.getElementById('code-warning');if(cw)cw.style.display='none';
   document.getElementById('f-selfcollect').checked=false;
   regPhotos=[];renderRegPhotoPreview();
 }
@@ -1335,6 +1391,15 @@ async function savePatient(){
   if(!code){alert('Patient code is required.');return;}
   const dup=patients.find(p=>p.code.toUpperCase()===code&&p.id!==editingId);
   if(dup){alert('This patient code is already in use.');return;}
+  // Validate Normal TB code format — warn but don't block
+  const tbtype=g('f-tbtype').value;
+  if(tbtype==='Normal TB'){
+    const validFormat=/^\d{3}[A-Za-z]{2}\d{2}[A-Za-z]\d{2}$/.test(code);
+    if(!validFormat){
+      const warning=document.getElementById('code-warning');
+      if(warning) warning.style.display='block';
+    }
+  }
   const pt={
     name,code,
     age:g('f-age').value,gender:g('f-gender').value,
