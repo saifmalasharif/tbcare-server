@@ -393,6 +393,7 @@ tbody td{padding:11px 14px;font-size:13px}
             <option value="Intensive">Intensive</option>
             <option value="Continuation">Continuation</option>
             <option value="Extended">Extended</option>
+            <option value="Active">XDR Active</option>
             <option value="Completed">Completed</option>
           </select>
           <select class="filter-sel" id="alert-filter" onchange="renderTable()">
@@ -639,6 +640,8 @@ function totalDays(pt) {
 function autoPhase(pt) {
   if (!pt.startDate) return 'Intensive';
   if (pt.treatmentStatus === 'completed') return 'Completed';
+  // XDR-TB has no fixed duration — never auto-complete
+  if (pt.tbtype === 'XDR-TB') return 'Active';
   const d = daysSince(pt.startDate);
   const total = totalDays(pt);
   if (d >= total) return 'Completed';
@@ -651,6 +654,7 @@ function currentDrug(pt) {
 }
 function daysLeft(pt) {
   if (!pt.startDate) return null;
+  if (pt.tbtype === 'XDR-TB') return null; // no fixed end
   return Math.max(0, totalDays(pt) - daysSince(pt.startDate));
 }
 function medStatus(pt) {
@@ -739,7 +743,7 @@ function renderStats() {
   const list = visiblePatients();
   const tot = list.length;
   const intv = list.filter(p=>autoPhase(p)==='Intensive').length;
-  const cont = list.filter(p=>autoPhase(p)==='Continuation'||autoPhase(p)==='Extended').length;
+  const cont = list.filter(p=>autoPhase(p)==='Continuation'||autoPhase(p)==='Extended'||autoPhase(p)==='Active').length;
   const alrt = list.filter(p=>['critical','low','empty'].includes(medStatus(p))&&autoPhase(p)!=='Completed'&&!p.selfcollect).length;
   const comp = list.filter(p=>autoPhase(p)==='Completed').length;
   const soon = list.filter(p=>{const r=refillDays(p);return r!==null&&r<=7&&autoPhase(p)!=='Completed'&&!p.selfcollect;}).length;
@@ -800,6 +804,7 @@ function renderAlerts() {
   const items = [];
   visiblePatients().forEach(pt=>{
     if (autoPhase(pt)==='Completed') return;
+    if (pt.tbtype==='XDR-TB' && pt.treatmentStatus==='completed') return;
     if (pt.selfcollect) return;
     const s=medStatus(pt),r=refillDays(pt);
     if (s==='empty') items.push({pt,type:'danger',msg:`${pt.name} (${pt.code}) — Medication EMPTY.`});
@@ -904,6 +909,7 @@ function renderTable() {
     const phPill=ph==='Intensive'?`<span class="pill phase1">Intensive</span>`
       :ph==='Continuation'?`<span class="pill phase2">Continuation</span>`
       :ph==='Extended'?`<span class="pill" style="background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:700">⏱ Extended</span>`
+      :ph==='Active'?`<span class="pill" style="background:#fce7f3;color:#9d174d;border:1px solid #f9a8d4;font-weight:700">🔬 XDR Active</span>`
       :`<span class="pill pdone">✓ Done</span>`;
     const supPill=s==='ok'?`<span class="pill med-ok">OK</span>`
       :s==='low'?`<span class="pill med-low">Low</span>`
@@ -937,7 +943,7 @@ function openPanel(id) {
   const endDate=addDays(pt.startDate,totalDays(pt));
   document.getElementById('panel-name').textContent=pt.name;
   document.getElementById('panel-meta').innerHTML=`
-    <span class="pill ${ph==='Intensive'?'phase1':ph==='Continuation'||ph==='Extended'?'phase2':'pdone'}">${ph==='Extended'?'⏱ Extended':ph}</span>
+    <span class="pill ${ph==='Intensive'?'phase1':ph==='Continuation'||ph==='Extended'?'phase2':ph==='Active'?'':' pdone'}" style="${ph==='Active'?'background:#fce7f3;color:#9d174d;border:1px solid #f9a8d4':''} ">${ph==='Extended'?'⏱ Extended':ph==='Active'?'🔬 XDR Active':ph}</span>
     <span class="code-tag">${pt.code}</span>
     ${pt.tbtype?`<span class="pill ${pt.tbtype==='MDR-TB'?'med-low':pt.tbtype==='XDR-TB'?'med-crit':'neutral'}">${pt.tbtype}</span>`:''}
     ${pt.selfcollect?`<span class="pill neutral" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd">🏠 Self-Collecting</span>`:''}
@@ -949,15 +955,31 @@ function openPanel(id) {
   const _td=totalDays(pt);
   const p1w=iPct*(INTENSIVE_DAYS/_td);
   const p2w=cPct*((_td-INTENSIVE_DAYS)/_td);
-  document.getElementById('panel-timeline').innerHTML=`
-    <div class="tl-label"><span style="color:var(--phase1)">Intensive · RHZE</span><span style="color:var(--phase2)">Continuation · RH</span></div>
-    <div class="tl-track"><div class="tl-p1" style="width:${p1w}%"></div><div class="tl-p2" style="width:${p2w}%"></div></div>
-    <div class="tl-months"><span>Start</span><span>Month 2</span><span>Month 4</span><span>Month 6</span>${pt.extensions>0?`<span style="color:#7c3aed;font-weight:700">Month ${6+(pt.extensions||0)}</span>`:''}</div>
-    <div class="tl-info">
-      <div class="tl-block" style="background:var(--phase1-light)"><div class="tv" style="color:var(--phase1)">${iPct}%</div><div class="tl">Intensive</div></div>
-      <div class="tl-block" style="background:var(--phase2-light)"><div class="tv" style="color:var(--phase2)">${cPct}%</div><div class="tl">Continuation</div></div>
-      <div class="tl-block" style="background:var(--surface2);border:1px solid var(--border)"><div class="tv">${dl!==null?dl+'d':'—'}</div><div class="tl">Days left</div></div>
-    </div>`;
+  if (pt.tbtype === 'XDR-TB') {
+    const elapsed = pt.startDate ? daysSince(pt.startDate) : 0;
+    const elapsedMonths = (elapsed/30).toFixed(1);
+    const elapsedYears = (elapsed/365).toFixed(1);
+    document.getElementById('panel-timeline').innerHTML=`
+      <div class="tl-label"><span style="color:#9d174d">XDR-TB · Unlimited Treatment</span><span style="color:var(--text3)">${pt.treatmentStatus==='completed'?'Completed':'Active — no fixed end date'}</span></div>
+      <div style="height:12px;background:linear-gradient(90deg,#fce7f3,#f9a8d4);border-radius:99px;margin-bottom:6px;position:relative;overflow:hidden">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#9d174d">${elapsed} days elapsed</div>
+      </div>
+      <div class="tl-info">
+        <div class="tl-block" style="background:#fce7f3;border:1px solid #f9a8d4"><div class="tv" style="color:#9d174d">${elapsed}d</div><div class="tl">Days Elapsed</div></div>
+        <div class="tl-block" style="background:#fce7f3;border:1px solid #f9a8d4"><div class="tv" style="color:#9d174d">${elapsedMonths}m</div><div class="tl">Months</div></div>
+        <div class="tl-block" style="background:#fce7f3;border:1px solid #f9a8d4"><div class="tv" style="color:#9d174d">${elapsedYears}y</div><div class="tl">Years</div></div>
+      </div>`;
+  } else {
+    document.getElementById('panel-timeline').innerHTML=`
+      <div class="tl-label"><span style="color:var(--phase1)">Intensive · RHZE</span><span style="color:var(--phase2)">Continuation · RH</span></div>
+      <div class="tl-track"><div class="tl-p1" style="width:${p1w}%"></div><div class="tl-p2" style="width:${p2w}%"></div></div>
+      <div class="tl-months"><span>Start</span><span>Month 2</span><span>Month 4</span><span>Month 6</span>${pt.extensions>0?`<span style="color:#7c3aed;font-weight:700">Month ${6+(pt.extensions||0)}</span>`:''}</div>
+      <div class="tl-info">
+        <div class="tl-block" style="background:var(--phase1-light)"><div class="tv" style="color:var(--phase1)">${iPct}%</div><div class="tl">Intensive</div></div>
+        <div class="tl-block" style="background:var(--phase2-light)"><div class="tv" style="color:var(--phase2)">${cPct}%</div><div class="tl">Continuation</div></div>
+        <div class="tl-block" style="background:var(--surface2);border:1px solid var(--border)"><div class="tv">${dl!==null?dl+'d':'—'}</div><div class="tl">Days left</div></div>
+      </div>`;
+  }
   const rem=pt.remaining||0,tot=pt.total||0;
   const pct=tot>0?Math.round(rem/tot*100):0;
   const s=medStatus(pt),r=refillDays(pt);
