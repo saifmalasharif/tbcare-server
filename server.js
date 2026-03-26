@@ -95,26 +95,21 @@ async function initDB() {
       );
     `);
 
-    const existing = await client.query("SELECT id FROM users WHERE username='saif'");
-    if (existing.rows.length === 0) {
-      const hash = await bcrypt.hash('tb2024!secure', 10);
+    const users = [
+      ['saif',    'Tb$aif@2026!',  'superadmin', null,      'SAIF'],
+      ['ninawa',  'Tb$Nnw@2026!',  'admin',      'Ninawa',  'NINAWA'],
+      ['baghdad', 'Tb$Bgd@2026!',  'admin',      'Baghdad', 'BAGHDAD'],
+      ['dohuk',   'Tb$Dhk@2026!',  'admin',      'Dohuk',   'DOHUK']
+    ];
+    for (const [u,p,r,g,l] of users) {
+      const h = await bcrypt.hash(p, 10);
       await client.query(
-        "INSERT INTO users (username,password,role,governorate,label) VALUES ($1,$2,$3,$4,$5)",
-        ['saif', hash, 'superadmin', null, 'SAIF']
+        `INSERT INTO users (username,password,role,governorate,label) VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (username) DO UPDATE SET password=$2, role=$3, governorate=$4, label=$5`,
+        [u, h, r, g, l]
       );
-      for (const [u,p,r,g,l] of [
-        ['ninawa','nnw2024!tb','admin','Ninawa','NINAWA'],
-        ['baghdad','bgd2024!tb','admin','Baghdad','BAGHDAD'],
-        ['dohuk','dhk2024!tb','admin','Dohuk','DOHUK']
-      ]) {
-        const h = await bcrypt.hash(p, 10);
-        await client.query(
-          "INSERT INTO users (username,password,role,governorate,label) VALUES ($1,$2,$3,$4,$5)",
-          [u, h, r, g, l]
-        );
-      }
-      console.log('Default users created');
     }
+    console.log('Users seeded/updated');
     console.log('Database initialized');
   } finally {
     client.release();
