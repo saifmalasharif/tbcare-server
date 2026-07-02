@@ -704,7 +704,7 @@ async function adminLogin() {
 }
 async function patientLogin() {
   const code = document.getElementById('pt-code-inp').value.trim().toUpperCase();
-  try { const pt = await api('GET', '/api/patient-lookup/'+code); showApp('patient', pt); }
+  try { const pt = await api('GET', '/api/patient-check/'+code); showApp('patient', pt); }
   catch(e) { showErr(); }
 }
 function showApp(role, pt) {
