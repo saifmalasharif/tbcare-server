@@ -465,6 +465,43 @@ app.get('/api/patient-lookup/:code', auth, async (req, res) => {
   } catch(e) { fail(res, e, 'lookup'); }
 });
 
+// ── PATIENT SELF-CHECK (public, minimal, rate-limited) ───────
+// Used by the patient tab on the login screen. Returns ONLY what the
+// patient view displays: treatment phase data and supply. Deliberately
+// excludes phone, age, gender, governorate, district, center, and full
+// name. Do not add identifying fields here.
+const lookupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Try again later.' }
+});
+
+app.get('/api/patient-check/:code', lookupLimiter, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM patients WHERE UPPER(code)=$1',
+      [req.params.code.toUpperCase()]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+    const p = result.rows[0];
+    res.json({
+      name: (p.name || '').split(' ')[0],   // first name only, for the greeting
+      code: p.code,
+      tbtype: p.tbtype,
+      startDate: p.start_date,
+      drug1: p.drug1, drug2: p.drug2,
+      daily: p.daily, total: p.total, remaining: p.remaining,
+      lastRefill: p.last_refill,
+      extensions: p.extensions || 0,
+      completedMonths: p.completed_months || 6,
+      treatmentStatus: p.treatment_status || null,
+      notes: p.notes || ''
+    });
+  } catch(e) { fail(res, e, 'patient-check'); }
+});
+
 // ── BACKUP (roadmap priority #1) ──────────────────────────────
 // Superadmin downloads a full JSON snapshot: patients, users (no password
 // hashes), and the audit log. Photos are excluded from the payload (they can
